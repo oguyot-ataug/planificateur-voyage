@@ -1,0 +1,487 @@
+<style>
+  :root {
+    --rojo: #C60B1E;
+    --amarillo: #FFC400;
+
+    --transport: #C60B1E;
+    --transport-bg: #FBEAEC;
+    --location: #7A5C1E;
+    --location-bg: #F3ECD9;
+    --hebergement: #B8860B;
+    --hebergement-bg: #FFF6DE;
+    --activite: #8B0000;
+    --activite-bg: #FBEAEA;
+    --repas: #E07A00;
+    --repas-bg: #FFF1DC;
+    --autre: #6b5b45;
+    --autre-bg: #F5F1E9;
+
+    --bg: #FFFBF2;
+    --card: #ffffff;
+    --text: #2b2013;
+    --border: #ecdfc4;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 0;
+  }
+
+  .material-symbols-rounded {
+    font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+    font-size: 20px;
+    line-height: 1;
+    vertical-align: middle;
+  }
+
+  .app { max-width: 700px; margin: 0 auto; padding: 0 16px 60px; }
+
+  header {
+    margin: 0 -16px 20px;
+    padding: 28px 16px 0;
+    background: linear-gradient(135deg, var(--rojo) 0%, var(--rojo) 42%, var(--amarillo) 50%, var(--rojo) 58%, var(--rojo) 100%);
+    border-radius: 0 0 24px 24px;
+    color: #fff;
+  }
+
+  header h1 {
+    font-size: 21px;
+    margin: 0 0 18px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  header h1 .material-symbols-rounded { font-size: 24px; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: rgba(255,255,255,0.2);
+    padding: 4px;
+    border-radius: 12px;
+    transform: translateY(14px);
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: none;
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    cursor: pointer;
+    border-radius: 9px;
+    transition: all 0.15s ease;
+  }
+
+  .tab-btn.active {
+    color: var(--rojo);
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+
+  .tab-content { display: none; padding-top: 22px; }
+  .tab-content.active { display: block; }
+
+  form {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 20px rgba(0,0,0,0.03);
+  }
+
+  label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #8a7a5c;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  input, textarea {
+    width: 100%;
+    margin-top: 4px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14.5px;
+    font-family: inherit;
+    background: #fffdf8;
+    color: var(--text);
+    transition: border-color 0.15s ease;
+  }
+
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--rojo);
+    background: #fff;
+  }
+
+  .row { display: flex; gap: 10px; }
+  .row label { flex: 1; }
+  .row > label { margin-top: 14px; }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    background: #fffdf8;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #8a7a5c;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .chip:hover { border-color: #d8c79a; }
+
+  .chip.active[data-type="Transport"], .chip.active[data-soustype] {
+    background: var(--transport-bg); border-color: var(--transport); color: var(--transport);
+  }
+  .chip.active[data-type="Location"] {
+    background: var(--location-bg); border-color: var(--location); color: var(--location);
+  }
+  .chip.active[data-type="Hébergement"] {
+    background: var(--hebergement-bg); border-color: var(--hebergement); color: var(--hebergement);
+  }
+  .chip.active[data-type="Activité"] {
+    background: var(--activite-bg); border-color: var(--activite); color: var(--activite);
+  }
+  .chip.active[data-type="Repas"] {
+    background: var(--repas-bg); border-color: var(--repas); color: var(--repas);
+  }
+  .chip.active[data-type="Autre"] {
+    background: var(--autre-bg); border-color: var(--autre); color: var(--autre);
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  button[type="submit"] {
+    background: linear-gradient(135deg, var(--rojo), #8f0815);
+    color: #fff;
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(198,11,30,0.3);
+  }
+
+  .secondary {
+    background: #f5efe0;
+    color: #6b5b45;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .hidden { display: none !important; }
+
+  h2 { font-size: 15px; margin: 24px 0 12px; color: #4a3f2c; font-weight: 800; }
+
+  .liste, .voyage { display: flex; flex-direction: column; gap: 12px; }
+
+  .carte {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    display: flex;
+    gap: 12px;
+  }
+
+  .carte-icone {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .carte-icone .material-symbols-rounded { font-size: 22px; }
+
+  .carte.Transport .carte-icone { background: var(--transport-bg); color: var(--transport); }
+  .carte.Location .carte-icone { background: var(--location-bg); color: var(--location); }
+  .carte.Hébergement .carte-icone { background: var(--hebergement-bg); color: var(--hebergement); }
+  .carte.Activité .carte-icone { background: var(--activite-bg); color: var(--activite); }
+  .carte.Repas .carte-icone { background: var(--repas-bg); color: var(--repas); }
+  .carte.Autre .carte-icone { background: var(--autre-bg); color: var(--autre); }
+
+  .carte-body { flex: 1; min-width: 0; }
+
+  .carte-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .carte-type {
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+
+  .carte.Transport .carte-type { color: var(--transport); }
+  .carte.Location .carte-type { color: var(--location); }
+  .carte.Hébergement .carte-type { color: var(--hebergement); }
+  .carte.Activité .carte-type { color: var(--activite); }
+  .carte.Repas .carte-type { color: var(--repas); }
+  .carte.Autre .carte-type { color: var(--autre); }
+
+  .carte-titre { font-size: 15px; font-weight: 700; margin: 3px 0 2px; color: var(--text); }
+  .carte-details { font-size: 13px; color: #5c5138; margin-top: 6px; white-space: pre-wrap; }
+
+  .carte-heure {
+    font-size: 12px;
+    font-weight: 700;
+    color: #5c5138;
+    background: #f5efe0;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .carte-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .carte-actions button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+    color: #6b5b45;
+  }
+  .carte-actions button .material-symbols-rounded { font-size: 16px; }
+  .carte-actions .del { color: #C60B1E; border-color: #f3c6cb; background: #fdf1f2; }
+  .lien-reservation {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--amarillo);
+    background: #FFF8E1;
+    color: #8a6d00;
+    text-decoration: none;
+  }
+  .lien-reservation .material-symbols-rounded { font-size: 16px; }
+
+  .carte-map {
+    margin-top: 12px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .carte-map iframe {
+    width: 100%;
+    height: 220px;
+    border: 0;
+    display: block;
+  }
+
+  .carte-lieu {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: #8a7a5c;
+  }
+  .carte-lieu .material-symbols-rounded { font-size: 16px; }
+
+  .jour-titre {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, var(--rojo), var(--amarillo) 120%);
+    display: inline-block;
+    padding: 5px 14px;
+    border-radius: 999px;
+    margin: 18px 0 8px;
+  }
+  .jour-titre:first-of-type { margin-top: 0; }
+
+  .vide { color: #b0a077; font-size: 14px; padding: 30px 0; text-align: center; }
+
+  .hint { font-size: 12.5px; color: #b0a077; margin: -8px 0 16px; }
+
+  /* Pastilles voyageurs (sélectionnables, non chip-active-colorées comme le type) */
+  .chip.voyageur.active {
+    background: #FFF8E1;
+    border-color: var(--amarillo);
+    color: #8a6d00;
+  }
+
+  .carte-prix {
+    font-size: 12px;
+    font-weight: 800;
+    color: #8a6d00;
+    background: #FFF8E1;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .carte-voyageurs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .badge-voyageur {
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: #f1ece0;
+    color: #6b5b45;
+  }
+
+  /* Onglet Voyageurs */
+  .ligne-voyageur {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .ligne-voyageur .nom { font-weight: 700; font-size: 14.5px; }
+  .ligne-voyageur button {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1.5px solid #f3c6cb;
+    background: #fdf1f2;
+    color: #C60B1E;
+    cursor: pointer;
+  }
+
+  /* Onglet Budget */
+  .budget-ligne {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .budget-nom { font-size: 15px; font-weight: 700; }
+  .budget-montant { font-size: 17px; font-weight: 800; color: var(--rojo); }
+  .budget-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, var(--rojo), var(--amarillo) 140%);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    color: #fff;
+  }
+  .budget-total .budget-nom { color: #fff; }
+  .budget-total .budget-montant { color: #fff; }
+  .budget-detail {
+    font-size: 12px;
+    color: #b0a077;
+    margin-top: 2px;
+  }
+
+  /* Chambres (formulaire hébergement) */
+  .chambre-bloc {
+    background: #fffdf8;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .chambre-entete {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .chambre-entete span {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--hebergement);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .del-chambre {
+    display: flex;
+    align-items: center;
+    border: none;
+    background: none;
+    color: #C60B1E;
+    cursor: pointer;
+    padding: 2px;
+  }
+  .del-chambre .material-symbols-rounded { font-size: 18px; }
+
+  /* Détail des chambres (carte) */
+  .carte-chambres {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .ligne-chambre-carte {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    background: #FFF6DE;
+    border-radius: 8px;
+    padding: 6px 10px;
+  }
+  .chambre-num { font-weight: 800; color: var(--hebergement); }
+  .chambre-prix { font-weight: 700; color: #8a6d00; }
+</style>
