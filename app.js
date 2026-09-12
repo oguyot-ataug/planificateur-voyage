@@ -23,6 +23,7 @@ let voyageurs = [];
 let chambresForm = [];
 let peutEditer = false;
 let estAdmin = false;
+let monVoyageurNom = null;
 let utilisateursAdmin = [];
 
 function genId() {
@@ -161,6 +162,7 @@ async function chargerVoyageurs() {
   afficherChipsVoyageurs();
   afficherListeVoyageurs();
   renderChambresForm();
+  remplirSelectVoyageursAdmin();
 }
 
 function formaterDate(iso) {
@@ -699,7 +701,24 @@ document.getElementById('form-etape').addEventListener('submit', async function 
 document.getElementById('form-login').addEventListener('submit', async function (evt) {
   evt.preventDefault();
   const email = document.getElementById('login-email').value.trim();
-  if (!email) return;
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) {
+    alert('Renseigne ton email et ton mot de passe, ou utilise le lien magique si tu n\'as pas encore de mot de passe.');
+    return;
+  }
+
+  const { error } = await sb.auth.signInWithPassword({ email: email, password: password });
+  if (error) {
+    alert('Erreur de connexion : ' + error.message);
+  }
+});
+
+document.getElementById('btn-login-magic').addEventListener('click', async function () {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) {
+    alert('Renseigne ton email d\'abord.');
+    return;
+  }
 
   const redirectTo = window.location.origin + window.location.pathname;
   const { error } = await sb.auth.signInWithOtp({ email: email, options: { emailRedirectTo: redirectTo } });
@@ -716,6 +735,24 @@ document.getElementById('btn-logout').addEventListener('click', async function (
   await sb.auth.signOut();
 });
 
+document.getElementById('btn-toggle-password').addEventListener('click', function () {
+  document.getElementById('form-set-password').classList.toggle('hidden');
+  document.getElementById('set-password-hint').classList.add('hidden');
+});
+
+document.getElementById('form-set-password').addEventListener('submit', async function (evt) {
+  evt.preventDefault();
+  const password = document.getElementById('set-password-value').value;
+  const { error } = await sb.auth.updateUser({ password: password });
+  if (error) {
+    alert('Erreur : ' + error.message);
+    return;
+  }
+  document.getElementById('form-set-password').reset();
+  document.getElementById('form-set-password').classList.add('hidden');
+  document.getElementById('set-password-hint').classList.remove('hidden');
+});
+
 function mettreAJourUIAuth(session) {
   const formLogin = document.getElementById('form-login');
   const sentHint = document.getElementById('login-sent-hint');
@@ -727,11 +764,13 @@ function mettreAJourUIAuth(session) {
     formLogin.classList.add('hidden');
     sentHint.classList.add('hidden');
     connecte.classList.remove('hidden');
-    emailSpan.textContent = session.user.email + (peutEditer ? '' : ' (non autorisé)');
+    const nomAffiche = monVoyageurNom || session.user.email;
+    emailSpan.textContent = nomAffiche + (peutEditer ? '' : ' (non autorisé)');
   } else {
     formLogin.classList.remove('hidden');
     sentHint.classList.add('hidden');
     connecte.classList.add('hidden');
+    document.getElementById('form-set-password').classList.add('hidden');
   }
 
   tabAdminBtn.classList.toggle('hidden', !estAdmin);
@@ -751,13 +790,16 @@ async function gererSession(session) {
     if (!error && data && data.length) {
       peutEditer = !!data[0].autorise;
       estAdmin = !!data[0].admin;
+      monVoyageurNom = data[0].voyageur_nom || null;
     } else {
       peutEditer = false;
       estAdmin = false;
+      monVoyageurNom = null;
     }
   } else {
     peutEditer = false;
     estAdmin = false;
+    monVoyageurNom = null;
   }
 
   mettreAJourUIAuth(session);
@@ -774,9 +816,11 @@ sb.auth.onAuthStateChange(function (event, session) {
 
 async function chargerUtilisateursAdmin() {
   if (!estAdmin) return;
+  remplirSelectVoyageursAdmin();
+
   const { data, error } = await sb
     .from('voyage_utilisateurs')
-    .select('email, is_admin')
+    .select('email, is_admin, voyageur_id, voyage_voyageurs(nom)')
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -787,6 +831,15 @@ async function chargerUtilisateursAdmin() {
   afficherListeAdmin();
 }
 
+function remplirSelectVoyageursAdmin() {
+  const select = document.getElementById('admin-voyageur');
+  if (!select) return;
+  const valeurActuelle = select.value;
+  select.innerHTML = '<option value="">— Aucun —</option>' +
+    voyageurs.map(function (v) { return '<option value="' + v.id + '">' + escapeHTML(v.nom) + '</option>'; }).join('');
+  select.value = valeurActuelle;
+}
+
 function afficherListeAdmin() {
   const cible = document.getElementById('liste-admin-utilisateurs');
   if (utilisateursAdmin.length === 0) {
@@ -794,7 +847,9 @@ function afficherListeAdmin() {
     return;
   }
   cible.innerHTML = utilisateursAdmin.map(function (u) {
+    const nomVoyageur = u.voyage_voyageurs ? u.voyage_voyageurs.nom : null;
     return '<div class="ligne-voyageur"><span class="nom">' + escapeHTML(u.email) +
+      (nomVoyageur ? ' <span class="badge-voyageur">' + escapeHTML(nomVoyageur) + '</span>' : '') +
       (u.is_admin ? '<span class="badge-admin">Admin</span>' : '') + '</span>' +
       '<button onclick="supprimerUtilisateurAdmin(\'' + encodeURIComponent(u.email) + '\')">Supprimer</button></div>';
   }).join('');
@@ -804,9 +859,10 @@ document.getElementById('form-admin-utilisateur').addEventListener('submit', asy
   evt.preventDefault();
   const email = document.getElementById('admin-email').value.trim();
   const isAdminCheck = document.getElementById('admin-est-admin').checked;
+  const voyageurId = document.getElementById('admin-voyageur').value || null;
   if (!email) return;
 
-  const { error } = await sb.from('voyage_utilisateurs').upsert({ email: email, is_admin: isAdminCheck });
+  const { error } = await sb.from('voyage_utilisateurs').upsert({ email: email, is_admin: isAdminCheck, voyageur_id: voyageurId });
   if (error) {
     alert('Erreur : ' + error.message);
     return;

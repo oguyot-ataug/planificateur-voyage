@@ -14,14 +14,22 @@
 
       <div id="auth-bar" class="auth-bar">
         <form id="form-login" class="auth-login hidden">
-          <input type="email" id="login-email" placeholder="ton@email.com" required>
-          <button type="submit">Recevoir le lien</button>
+          <input type="email" id="login-email" placeholder="Email" required>
+          <input type="password" id="login-password" placeholder="Mot de passe">
+          <button type="submit">Se connecter</button>
+          <button type="button" id="btn-login-magic">Lien magique</button>
         </form>
         <p id="login-sent-hint" class="auth-hint hidden">Lien envoyé — vérifie ta boîte mail.</p>
         <div id="auth-connecte" class="auth-connecte hidden">
           <span id="auth-email"></span>
+          <button type="button" id="btn-toggle-password">Mot de passe</button>
           <button type="button" id="btn-logout">Déconnexion</button>
         </div>
+        <form id="form-set-password" class="auth-set-password hidden">
+          <input type="password" id="set-password-value" placeholder="Nouveau mot de passe" required minlength="6">
+          <button type="submit">Enregistrer</button>
+        </form>
+        <p id="set-password-hint" class="auth-hint hidden">Mot de passe enregistré.</p>
       </div>
 
       <nav class="tabs">
@@ -161,6 +169,11 @@
       <form id="form-admin-utilisateur">
         <label>Email
           <input type="email" id="admin-email" placeholder="prenom@email.com" required>
+        </label>
+        <label>Voyageur associé
+          <select id="admin-voyageur">
+            <option value="">— Aucun —</option>
+          </select>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="admin-est-admin"> Compte admin
