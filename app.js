@@ -113,11 +113,13 @@ function mapEtapeFromDb(row) {
     details: row.details,
     lien: row.lien,
     prix: row.prix,
+    payeurId: row.payeur_id,
     voyageurIds: (row.voyage_etape_voyageurs || []).map(function (v) { return v.voyageur_id; }),
     chambres: (row.voyage_chambres || []).map(function (c) {
       return {
         id: c.id,
         prix: c.prix,
+        payeurId: c.payeur_id,
         voyageurIds: (c.voyage_chambre_voyageurs || []).map(function (v) { return v.voyageur_id; })
       };
     })
@@ -128,9 +130,9 @@ async function chargerEtapes() {
   const { data, error } = await sb
     .from('voyage_etapes')
     .select(`
-      id, type, sous_type, titre, lieu, lieu_arrivee, date_debut, heure_debut, date_fin, heure_fin, details, lien, prix,
+      id, type, sous_type, titre, lieu, lieu_arrivee, date_debut, heure_debut, date_fin, heure_fin, details, lien, prix, payeur_id,
       voyage_etape_voyageurs ( voyageur_id ),
-      voyage_chambres ( id, prix, voyage_chambre_voyageurs ( voyageur_id ) )
+      voyage_chambres ( id, prix, payeur_id, voyage_chambre_voyageurs ( voyageur_id ) )
     `)
     .order('date_debut', { ascending: true })
     .order('heure_debut', { ascending: true });
@@ -163,6 +165,16 @@ async function chargerVoyageurs() {
   afficherListeVoyageurs();
   renderChambresForm();
   remplirSelectVoyageursAdmin();
+  remplirSelectPayeur();
+}
+
+function remplirSelectPayeur() {
+  const select = document.getElementById('etape-payeur');
+  if (!select) return;
+  const valeurActuelle = select.value;
+  select.innerHTML = '<option value="">— Non précisé —</option>' +
+    voyageurs.map(function (v) { return '<option value="' + v.id + '">' + escapeHTML(v.nom) + '</option>'; }).join('');
+  select.value = valeurActuelle;
 }
 
 function formaterDate(iso) {
@@ -255,10 +267,12 @@ function lignesCoutPour(e) {
   if (e.type === 'Hébergement') {
     return (e.chambres || [])
       .filter(function (c) { return c.prix; })
-      .map(function (c) { return { prix: parseFloat(c.prix), ids: c.voyageurIds || [] }; });
+      .map(function (c, i) {
+        return { prix: parseFloat(c.prix), ids: c.voyageurIds || [], payeurId: c.payeurId || null, titre: e.titre + ' — Chambre ' + (i + 1) };
+      });
   }
   if (e.prix) {
-    return [{ prix: parseFloat(e.prix), ids: e.voyageurIds || [] }];
+    return [{ prix: parseFloat(e.prix), ids: e.voyageurIds || [], payeurId: e.payeurId || null, titre: e.titre }];
   }
   return [];
 }
@@ -391,7 +405,7 @@ function voyageursSelectionnes() {
 // ---- Chambres (formulaire hébergement) ----
 
 function ajouterChambre() {
-  chambresForm.push({ clientId: genId(), prix: '', voyageurs: [] });
+  chambresForm.push({ clientId: genId(), prix: '', payeur: '', voyageurs: [] });
   renderChambresForm();
 }
 
@@ -403,6 +417,11 @@ function supprimerChambreForm(clientId) {
 function majPrixChambre(clientId, valeur) {
   const c = chambresForm.find(function (x) { return x.clientId === clientId; });
   if (c) c.prix = valeur;
+}
+
+function majPayeurChambre(clientId, valeur) {
+  const c = chambresForm.find(function (x) { return x.clientId === clientId; });
+  if (c) c.payeur = valeur;
 }
 
 function toggleVoyageurChambre(clientId, voyageurId) {
@@ -429,11 +448,15 @@ function renderChambresForm() {
         }).join('')
       : '<p class="hint">Ajoute des voyageurs dans l\'onglet « Voyageurs » pour pouvoir les cocher ici.</p>';
 
+    const optionsPayeur = '<option value="">— Non précisé —</option>' +
+      voyageurs.map(function (v) { return '<option value="' + v.id + '"' + (c.payeur === v.id ? ' selected' : '') + '>' + escapeHTML(v.nom) + '</option>'; }).join('');
+
     return '<div class="chambre-bloc">' +
       '  <div class="chambre-entete"><span>Chambre ' + (i + 1) + '</span>' +
       '    <button type="button" class="del-chambre" onclick="supprimerChambreForm(\'' + c.clientId + '\')"><span class="material-symbols-rounded">delete</span></button>' +
       '  </div>' +
       '  <label>Prix (€)<input type="number" step="0.01" min="0" value="' + (c.prix || '') + '" oninput="majPrixChambre(\'' + c.clientId + '\', this.value)" placeholder="Ex : 89.00"></label>' +
+      '  <label>Payé par<select onchange="majPayeurChambre(\'' + c.clientId + '\', this.value)">' + optionsPayeur + '</select></label>' +
       '  <label>Voyageurs</label>' +
       '  <div class="chips">' + chipsHtml + '</div>' +
       '</div>';
@@ -491,29 +514,79 @@ function afficherBudget() {
     return;
   }
 
-  const totaux = {};
-  voyageurs.forEach(function (v) { totaux[v.id] = 0; });
+  const totalDu = {};
+  const totalPaye = {};
+  const detailDu = {};
+  const detailPaye = {};
+  voyageurs.forEach(function (v) {
+    totalDu[v.id] = 0;
+    totalPaye[v.id] = 0;
+    detailDu[v.id] = [];
+    detailPaye[v.id] = [];
+  });
   let nonAttribue = 0;
   let total = 0;
 
   etapes.forEach(function (e) {
     lignesCoutPour(e).forEach(function (ligne) {
       total += ligne.prix;
+
       if (ligne.ids.length === 0) {
         nonAttribue += ligne.prix;
-        return;
+      } else {
+        const part = ligne.prix / ligne.ids.length;
+        ligne.ids.forEach(function (id) {
+          if (totalDu.hasOwnProperty(id)) {
+            totalDu[id] += part;
+            detailDu[id].push({ titre: ligne.titre, montant: part });
+          }
+        });
       }
-      const part = ligne.prix / ligne.ids.length;
-      ligne.ids.forEach(function (id) {
-        if (totaux.hasOwnProperty(id)) totaux[id] += part;
-      });
+
+      if (ligne.payeurId && totalPaye.hasOwnProperty(ligne.payeurId)) {
+        totalPaye[ligne.payeurId] += ligne.prix;
+        detailPaye[ligne.payeurId].push({ titre: ligne.titre, montant: ligne.prix });
+      }
     });
   });
 
   let html = '<div class="budget-total"><span class="budget-nom">Total du voyage</span><span class="budget-montant">' + formaterPrix(total) + '</span></div>';
 
   html += voyageurs.map(function (v) {
-    return '<div class="budget-ligne"><span class="budget-nom">' + escapeHTML(v.nom) + '</span><span class="budget-montant">' + formaterPrix(totaux[v.id]) + '</span></div>';
+    const solde = totalPaye[v.id] - totalDu[v.id];
+    const classeSolde = solde > 0.005 ? 'positif' : (solde < -0.005 ? 'negatif' : 'neutre');
+    const signeSolde = solde > 0.005 ? '+' : '';
+
+    const detailDuHtml = detailDu[v.id].length
+      ? detailDu[v.id].map(function (l) { return '<div class="ligne-detail"><span>' + escapeHTML(l.titre) + '</span><span>' + formaterPrix(l.montant) + '</span></div>'; }).join('')
+      : '<div class="accordion-vide">Aucune dépense à sa charge.</div>';
+
+    const detailPayeHtml = detailPaye[v.id].length
+      ? detailPaye[v.id].map(function (l) { return '<div class="ligne-detail"><span>' + escapeHTML(l.titre) + '</span><span>' + formaterPrix(l.montant) + '</span></div>'; }).join('')
+      : '<div class="accordion-vide">N\'a rien payé pour l\'instant.</div>';
+
+    return '' +
+      '<div class="accordion-voyageur" id="accordion-' + v.id + '">' +
+      '  <button type="button" class="accordion-header" onclick="toggleAccordionBudget(\'' + v.id + '\')">' +
+      '    <span class="nom">' + escapeHTML(v.nom) + '</span>' +
+      '    <span style="display:flex; align-items:center; gap:10px;">' +
+      '      <span class="solde ' + classeSolde + '">' + signeSolde + formaterPrix(solde) + '</span>' +
+      '      <span class="material-symbols-rounded chevron">expand_more</span>' +
+      '    </span>' +
+      '  </button>' +
+      '  <div class="accordion-body hidden">' +
+      '    <div class="accordion-section">' +
+      '      <h4>Sa part (dû)</h4>' +
+      detailDuHtml +
+      '      <div class="ligne-detail total"><span>Total dû</span><span>' + formaterPrix(totalDu[v.id]) + '</span></div>' +
+      '    </div>' +
+      '    <div class="accordion-section">' +
+      '      <h4>A payé</h4>' +
+      detailPayeHtml +
+      '      <div class="ligne-detail total"><span>Total payé</span><span>' + formaterPrix(totalPaye[v.id]) + '</span></div>' +
+      '    </div>' +
+      '  </div>' +
+      '</div>';
   }).join('');
 
   if (nonAttribue > 0) {
@@ -521,6 +594,14 @@ function afficherBudget() {
   }
 
   cible.innerHTML = html;
+}
+
+function toggleAccordionBudget(voyageurId) {
+  const bloc = document.getElementById('accordion-' + voyageurId);
+  if (!bloc) return;
+  const body = bloc.querySelector('.accordion-body');
+  const ouvert = bloc.classList.toggle('ouvert');
+  body.classList.toggle('hidden', !ouvert);
 }
 
 function modifierEtape(id) {
@@ -540,10 +621,11 @@ function modifierEtape(id) {
   document.getElementById('etape-details').value = e.details || '';
   document.getElementById('etape-lien').value = e.lien || '';
   document.getElementById('etape-prix').value = e.prix || '';
+  document.getElementById('etape-payeur').value = e.payeurId || '';
 
   if (e.type === 'Hébergement') {
     chambresForm = (e.chambres || []).map(function (c) {
-      return { clientId: genId(), prix: c.prix || '', voyageurs: c.voyageurIds || [] };
+      return { clientId: genId(), prix: c.prix || '', payeur: c.payeurId || '', voyageurs: c.voyageurIds || [] };
     });
     renderChambresForm();
     document.getElementById('bloc-chambres').classList.remove('hidden');
@@ -632,7 +714,8 @@ document.getElementById('form-etape').addEventListener('submit', async function 
     heure_fin: vide(document.getElementById('etape-heureFin').value),
     details: vide(document.getElementById('etape-details').value),
     lien: vide(document.getElementById('etape-lien').value),
-    prix: type === 'Hébergement' ? null : vide(document.getElementById('etape-prix').value)
+    prix: type === 'Hébergement' ? null : vide(document.getElementById('etape-prix').value),
+    payeur_id: type === 'Hébergement' ? null : vide(document.getElementById('etape-payeur').value)
   };
 
   const btn = document.getElementById('btn-save');
@@ -673,7 +756,7 @@ document.getElementById('form-etape').addEventListener('submit', async function 
       for (const c of chambresValides) {
         const { data: chambreData, error: errChambre } = await sb
           .from('voyage_chambres')
-          .insert({ etape_id: id, prix: vide(c.prix) })
+          .insert({ etape_id: id, prix: vide(c.prix), payeur_id: vide(c.payeur) })
           .select('id')
           .single();
         if (errChambre) throw errChambre;
