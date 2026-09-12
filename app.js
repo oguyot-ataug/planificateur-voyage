@@ -765,7 +765,7 @@ function mettreAJourUIAuth(session) {
     sentHint.classList.add('hidden');
     connecte.classList.remove('hidden');
     const nomAffiche = monVoyageurNom || session.user.email;
-    emailSpan.textContent = nomAffiche + (peutEditer ? '' : ' (non autorisé)');
+    emailSpan.textContent = nomAffiche + (peutEditer ? '' : ' (compte non autorisé — contacte l\'admin)');
   } else {
     formLogin.classList.remove('hidden');
     sentHint.classList.add('hidden');
@@ -778,10 +778,8 @@ function mettreAJourUIAuth(session) {
     document.querySelector('.tab-btn[data-tab="saisie"]').click();
   }
 
-  document.getElementById('form-etape').classList.toggle('hidden', !peutEditer);
-  document.getElementById('saisie-connexion-requise').classList.toggle('hidden', peutEditer);
-  document.getElementById('form-voyageur').classList.toggle('hidden', !peutEditer);
-  document.getElementById('voyageurs-connexion-requise').classList.toggle('hidden', peutEditer);
+  document.getElementById('contenu-protege').classList.toggle('hidden', !peutEditer);
+  document.getElementById('non-connecte-message').classList.toggle('hidden', peutEditer);
 }
 
 async function gererSession(session) {
@@ -803,9 +801,14 @@ async function gererSession(session) {
   }
 
   mettreAJourUIAuth(session);
-  afficherListeSaisie();
-  afficherVoyage();
-  afficherListeVoyageurs();
+
+  if (peutEditer) {
+    await chargerEtapes();
+    await chargerVoyageurs();
+  } else {
+    etapes = [];
+    voyageurs = [];
+  }
 }
 
 sb.auth.onAuthStateChange(function (event, session) {
@@ -882,6 +885,4 @@ async function supprimerUtilisateurAdmin(emailEncode) {
   await chargerUtilisateursAdmin();
 }
 
-chargerEtapes();
-chargerVoyageurs();
 sb.auth.getSession().then(function (res) { gererSession(res.data.session); });
