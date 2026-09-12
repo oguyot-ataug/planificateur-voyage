@@ -80,3 +80,4 @@ le code source public.
   du code sans copier-coller manuel dans l'éditeur Apps Script.
 
 <!-- trigger pages build -->
+<!-- rebuild trigger 1789249758 -->
