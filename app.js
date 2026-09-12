@@ -165,16 +165,36 @@ async function chargerVoyageurs() {
   afficherListeVoyageurs();
   renderChambresForm();
   remplirSelectVoyageursAdmin();
-  remplirSelectPayeur();
+  const payeurActuel = document.getElementById('etape-payeur') ? document.getElementById('etape-payeur').value : '';
+  afficherChipsPayeur(payeurActuel);
 }
 
-function remplirSelectPayeur() {
-  const select = document.getElementById('etape-payeur');
-  if (!select) return;
-  const valeurActuelle = select.value;
-  select.innerHTML = '<option value="">— Non précisé —</option>' +
-    voyageurs.map(function (v) { return '<option value="' + v.id + '">' + escapeHTML(v.nom) + '</option>'; }).join('');
-  select.value = valeurActuelle;
+function afficherChipsPayeur(selectionne) {
+  const cible = document.getElementById('chips-payeur');
+  if (!cible) return;
+  if (voyageurs.length === 0) {
+    cible.innerHTML = '';
+    return;
+  }
+  cible.innerHTML = voyageurs.map(function (v) {
+    const actif = selectionne === v.id;
+    return '<button type="button" class="chip voyageur' + (actif ? ' active' : '') + '" data-payeur="' + v.id + '">' +
+      '<span class="material-symbols-rounded">person</span><span>' + escapeHTML(v.nom) + '</span></button>';
+  }).join('');
+
+  cible.querySelectorAll('.chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      const dejaActif = chip.classList.contains('active');
+      cible.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('active'); });
+      if (!dejaActif) {
+        chip.classList.add('active');
+        document.getElementById('etape-payeur').value = chip.dataset.payeur;
+      } else {
+        document.getElementById('etape-payeur').value = '';
+      }
+    });
+  });
+}
 }
 
 function formaterDate(iso) {
@@ -419,16 +439,18 @@ function majPrixChambre(clientId, valeur) {
   if (c) c.prix = valeur;
 }
 
-function majPayeurChambre(clientId, valeur) {
-  const c = chambresForm.find(function (x) { return x.clientId === clientId; });
-  if (c) c.payeur = valeur;
-}
-
 function toggleVoyageurChambre(clientId, voyageurId) {
   const c = chambresForm.find(function (x) { return x.clientId === clientId; });
   if (!c) return;
   const idx = c.voyageurs.indexOf(voyageurId);
   if (idx === -1) c.voyageurs.push(voyageurId); else c.voyageurs.splice(idx, 1);
+  renderChambresForm();
+}
+
+function togglePayeurChambre(clientId, voyageurId) {
+  const c = chambresForm.find(function (x) { return x.clientId === clientId; });
+  if (!c) return;
+  c.payeur = (c.payeur === voyageurId) ? '' : voyageurId;
   renderChambresForm();
 }
 
@@ -448,15 +470,21 @@ function renderChambresForm() {
         }).join('')
       : '<p class="hint">Ajoute des voyageurs dans l\'onglet « Voyageurs » pour pouvoir les cocher ici.</p>';
 
-    const optionsPayeur = '<option value="">— Non précisé —</option>' +
-      voyageurs.map(function (v) { return '<option value="' + v.id + '"' + (c.payeur === v.id ? ' selected' : '') + '>' + escapeHTML(v.nom) + '</option>'; }).join('');
+    const chipsPayeurHtml = voyageurs.length
+      ? voyageurs.map(function (v) {
+          const actif = c.payeur === v.id;
+          return '<button type="button" class="chip voyageur' + (actif ? ' active' : '') + '" onclick="togglePayeurChambre(\'' + c.clientId + '\',\'' + v.id + '\')">' +
+            '<span class="material-symbols-rounded">person</span><span>' + escapeHTML(v.nom) + '</span></button>';
+        }).join('')
+      : '<p class="hint">Ajoute des voyageurs dans l\'onglet « Voyageurs » pour pouvoir les cocher ici.</p>';
 
     return '<div class="chambre-bloc">' +
       '  <div class="chambre-entete"><span>Chambre ' + (i + 1) + '</span>' +
       '    <button type="button" class="del-chambre" onclick="supprimerChambreForm(\'' + c.clientId + '\')"><span class="material-symbols-rounded">delete</span></button>' +
       '  </div>' +
       '  <label>Prix (€)<input type="number" step="0.01" min="0" value="' + (c.prix || '') + '" oninput="majPrixChambre(\'' + c.clientId + '\', this.value)" placeholder="Ex : 89.00"></label>' +
-      '  <label>Payé par<select onchange="majPayeurChambre(\'' + c.clientId + '\', this.value)">' + optionsPayeur + '</select></label>' +
+      '  <label>Payé par</label>' +
+      '  <div class="chips">' + chipsPayeurHtml + '</div>' +
       '  <label>Voyageurs</label>' +
       '  <div class="chips">' + chipsHtml + '</div>' +
       '</div>';
@@ -622,6 +650,7 @@ function modifierEtape(id) {
   document.getElementById('etape-lien').value = e.lien || '';
   document.getElementById('etape-prix').value = e.prix || '';
   document.getElementById('etape-payeur').value = e.payeurId || '';
+  afficherChipsPayeur(e.payeurId || '');
 
   if (e.type === 'Hébergement') {
     chambresForm = (e.chambres || []).map(function (c) {
@@ -683,6 +712,8 @@ function reinitialiserFormulaire() {
   document.getElementById('chips-soustype-wrap').classList.add('hidden');
   document.getElementById('champ-lieu-arrivee-wrap').classList.add('hidden');
   afficherChipsVoyageurs([]);
+  document.getElementById('etape-payeur').value = '';
+  afficherChipsPayeur('');
   chambresForm = [];
   renderChambresForm();
   document.getElementById('bloc-chambres').classList.add('hidden');
