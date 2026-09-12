@@ -1,48 +1,65 @@
 # Planificateur de voyage
 
-Webapp Google Apps Script pour préparer un voyage à plusieurs : étapes (transport,
-location, hébergement, activité, repas...), carte Google Maps intégrée, voyageurs
-et répartition automatique du budget par personne.
+Webapp pour préparer un voyage à plusieurs : étapes (transport, location,
+hébergement, activité, repas...), carte Google Maps intégrée, voyageurs et
+répartition automatique du budget par personne.
 
 ## Stack
 
-- **Frontend + backend** : Google Apps Script (HtmlService), servi comme Web App.
-- **Données** : Google Sheet (feuilles "Etapes" et "Voyageurs"), pas de base de
-  données externe.
-- **Carte** : Google Maps Embed API (clé à renseigner dans `Code.gs`).
+- **Frontend** : HTML/CSS/JS natif, hébergé sur **GitHub Pages** (site statique,
+  aucune étape de build).
+- **Backend / données** : **Supabase** (Postgres), projet partagé avec Moneta
+  (`oxdjcwudprrhjsteznxl`), tables préfixées `voyage_*` pour rester isolées.
+- **Carte** : Google Maps Embed API (clé dans `config.js`).
 
-Ce dépôt sert de sauvegarde versionnée du code. Le déploiement réel se fait en
-collant ces fichiers dans l'éditeur Apps Script lié au Google Sheet (voir plus bas) —
-GitHub n'héberge pas l'exécution, seulement le code source.
+Le site est servi directement depuis ce dépôt : chaque modification poussée sur
+`main` est visible sur GitHub Pages après quelques dizaines de secondes, sans
+copier-coller manuel.
 
 ## Fichiers
 
 | Fichier | Rôle |
 |---|---|
-| `Code.gs` | Backend : lecture/écriture du Google Sheet, routes `doGet`, clé Maps |
-| `Index.html` | Structure HTML, formulaire de saisie, 4 onglets |
-| `Stylesheet.html` | Styles (palette rouge/jaune) |
-| `JavaScript.html` | Logique client : onglets, pastilles, carte, budget |
+| `index.html` | Structure HTML, formulaire de saisie, 4 onglets |
+| `style.css` | Styles (palette rouge/jaune) |
+| `config.js` | URL + clé publique Supabase, clé Maps Embed |
+| `app.js` | Logique client : chargement/sauvegarde Supabase, onglets, carte, budget |
+| `apps-script-legacy/` | Ancienne version Google Apps Script + Sheets, conservée pour référence |
+
+## Schéma Supabase (`voyage_*`)
+
+- `voyage_voyageurs` — les personnes du voyage (`id`, `nom`)
+- `voyage_etapes` — une ligne par étape (transport, hébergement, activité...)
+- `voyage_etape_voyageurs` — table de jointure : qui est concerné par une étape
+  (hors hébergement)
+- `voyage_chambres` — une ligne par chambre, rattachée à une étape hébergement
+- `voyage_chambre_voyageurs` — table de jointure : qui occupe quelle chambre
+
+Toutes les tables ont RLS activé avec une policy publique (`using (true)`) —
+adapté à un usage familial privé sans authentification, pas à un usage grand
+public.
 
 ## Déploiement
 
-1. Créer ou ouvrir un Google Sheet dédié.
-2. Extensions → Apps Script.
-3. Coller le contenu des 4 fichiers ci-dessus (noms de fichiers identiques, sans
-   l'extension `.html` dans l'éditeur Apps Script pour les fichiers HTML).
-4. Dans `Code.gs`, vérifier `SPREADSHEET_ID` (l'ID du Sheet visé) et remplacer
-   `MAPS_API_KEY` par une clé "Maps Embed API" valide.
-5. Déployer → Nouveau déploiement → Application Web → exécuter en tant que "Moi",
-   accès selon besoin.
+1. GitHub Pages est activé sur ce dépôt (Settings → Pages → branche `main`,
+   dossier `/`).
+2. Le dépôt doit rester **public** : GitHub Pages sur compte gratuit ne
+   fonctionne pas avec un dépôt privé (il faudrait GitHub Pro).
+3. La clé Supabase dans `config.js` est une clé **publique** ("publishable"),
+   faite pour être visible côté client — la sécurité repose sur les policies
+   RLS, pas sur le secret du fichier.
 
 ## ⚠️ Sécurité
 
-`MAPS_API_KEY` est en clair dans `Code.gs`. Si ce dépôt est public, restreins la
-clé (API + referrers) dans Google Cloud Console, ou passe-la plutôt par
-`PropertiesService` et garde ce repo public sans clé réelle committée.
+`MAPS_API_KEY` dans `config.js` doit être restreinte (API "Maps Embed API" +
+referrers autorisés) dans Google Cloud Console, puisqu'elle est visible dans
+le code source public.
 
 ## Historique
 
-Développé par itérations successives : saisie/tri des étapes, édition, carte
-Maps intégrée, types Transport/Location avec sous-modes, gestion des chambres
-multiples pour un hébergement, voyageurs et budget partagé.
+- Développé initialement en Google Apps Script + Google Sheets (voir
+  `apps-script-legacy/`) : saisie/tri des étapes, édition, carte Maps intégrée,
+  types Transport/Location avec sous-modes, chambres multiples, voyageurs et
+  budget partagé.
+- Migré vers GitHub Pages + Supabase pour permettre des modifications rapides
+  du code sans copier-coller manuel dans l'éditeur Apps Script.
