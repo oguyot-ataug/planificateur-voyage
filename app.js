@@ -195,7 +195,6 @@ function afficherChipsPayeur(selectionne) {
     });
   });
 }
-}
 
 function formaterDate(iso) {
   if (!iso) return '';
