@@ -567,6 +567,13 @@
     gap: 8px;
     margin-bottom: 12px;
   }
+  #form-login, #form-set-password {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
   .auth-login, .auth-set-password {
     display: flex;
     flex-wrap: wrap;
