@@ -11,16 +11,31 @@
   <div class="app">
     <header>
       <h1><span class="material-symbols-rounded">flight_takeoff</span> Planificateur de voyage</h1>
+
+      <div id="auth-bar" class="auth-bar">
+        <form id="form-login" class="auth-login hidden">
+          <input type="email" id="login-email" placeholder="ton@email.com" required>
+          <button type="submit">Recevoir le lien</button>
+        </form>
+        <p id="login-sent-hint" class="auth-hint hidden">Lien envoyé — vérifie ta boîte mail.</p>
+        <div id="auth-connecte" class="auth-connecte hidden">
+          <span id="auth-email"></span>
+          <button type="button" id="btn-logout">Déconnexion</button>
+        </div>
+      </div>
+
       <nav class="tabs">
         <button class="tab-btn active" data-tab="saisie">Saisie</button>
         <button class="tab-btn" data-tab="voyage">Mon voyage</button>
         <button class="tab-btn" data-tab="voyageurs">Voyageurs</button>
         <button class="tab-btn" data-tab="budget">Budget</button>
+        <button class="tab-btn hidden" data-tab="admin" id="tab-btn-admin">Admin</button>
       </nav>
     </header>
 
     <!-- ONGLET SAISIE -->
     <section id="tab-saisie" class="tab-content active">
+      <p id="saisie-connexion-requise" class="hint-connexion hidden">Connecte-toi (en haut de la page) pour ajouter ou modifier des étapes.</p>
       <form id="form-etape">
         <input type="hidden" id="etape-id">
         <input type="hidden" id="etape-type" required>
@@ -123,6 +138,7 @@
 
     <!-- ONGLET VOYAGEURS -->
     <section id="tab-voyageurs" class="tab-content">
+      <p id="voyageurs-connexion-requise" class="hint-connexion hidden">Connecte-toi (en haut de la page) pour ajouter ou retirer des voyageurs.</p>
       <form id="form-voyageur">
         <label>Nom du voyageur
           <input type="text" id="voyageur-nom" placeholder="Ex : Sophie" required>
@@ -137,6 +153,23 @@
     <!-- ONGLET BUDGET -->
     <section id="tab-budget" class="tab-content">
       <div id="budget-contenu"></div>
+    </section>
+
+    <!-- ONGLET ADMIN -->
+    <section id="tab-admin" class="tab-content">
+      <h2>Comptes autorisés</h2>
+      <form id="form-admin-utilisateur">
+        <label>Email
+          <input type="email" id="admin-email" placeholder="prenom@email.com" required>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="admin-est-admin"> Compte admin
+        </label>
+        <div class="form-actions">
+          <button type="submit">Ajouter</button>
+        </div>
+      </form>
+      <div id="liste-admin-utilisateurs" class="liste"></div>
     </section>
   </div>
 

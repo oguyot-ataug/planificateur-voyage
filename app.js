@@ -21,6 +21,9 @@ const ICONES_TRANSPORT = {
 let etapes = [];
 let voyageurs = [];
 let chambresForm = [];
+let peutEditer = false;
+let estAdmin = false;
+let utilisateursAdmin = [];
 
 function genId() {
   return 'c' + Math.random().toString(36).slice(2, 9);
@@ -41,6 +44,7 @@ document.querySelectorAll('.tab-btn').forEach(function (btn) {
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'budget') afficherBudget();
+    if (btn.dataset.tab === 'admin') chargerUtilisateursAdmin();
   });
 });
 
@@ -325,7 +329,7 @@ function afficherListeSaisie() {
     cible.innerHTML = '<div class="vide">Aucune étape saisie pour le moment.</div>';
     return;
   }
-  cible.innerHTML = etapes.map(function (e) { return carteHTML(e, true, 'saisie'); }).join('');
+  cible.innerHTML = etapes.map(function (e) { return carteHTML(e, peutEditer, 'saisie'); }).join('');
 }
 
 function afficherVoyage() {
@@ -341,7 +345,7 @@ function afficherVoyage() {
       jourCourant = e.dateDebut;
       html += '<div class="jour-titre">' + formaterDate(jourCourant) + '</div>';
     }
-    html += carteHTML(e, true, 'voyage');
+    html += carteHTML(e, peutEditer, 'voyage');
   });
   cible.innerHTML = html;
 }
@@ -446,7 +450,7 @@ function afficherListeVoyageurs() {
   }
   cible.innerHTML = voyageurs.map(function (v) {
     return '<div class="ligne-voyageur"><span class="nom">' + escapeHTML(v.nom) + '</span>' +
-      '<button onclick="supprimerVoyageur(\'' + v.id + '\')">Supprimer</button></div>';
+      (peutEditer ? '<button onclick="supprimerVoyageur(\'' + v.id + '\')">Supprimer</button>' : '') + '</div>';
   }).join('');
 }
 
@@ -690,5 +694,138 @@ document.getElementById('form-etape').addEventListener('submit', async function 
   }
 });
 
+// ---- Authentification ----
+
+document.getElementById('form-login').addEventListener('submit', async function (evt) {
+  evt.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) return;
+
+  const redirectTo = window.location.origin + window.location.pathname;
+  const { error } = await sb.auth.signInWithOtp({ email: email, options: { emailRedirectTo: redirectTo } });
+
+  if (error) {
+    alert('Erreur : ' + error.message);
+    return;
+  }
+  document.getElementById('form-login').classList.add('hidden');
+  document.getElementById('login-sent-hint').classList.remove('hidden');
+});
+
+document.getElementById('btn-logout').addEventListener('click', async function () {
+  await sb.auth.signOut();
+});
+
+function mettreAJourUIAuth(session) {
+  const formLogin = document.getElementById('form-login');
+  const sentHint = document.getElementById('login-sent-hint');
+  const connecte = document.getElementById('auth-connecte');
+  const emailSpan = document.getElementById('auth-email');
+  const tabAdminBtn = document.getElementById('tab-btn-admin');
+
+  if (session && session.user) {
+    formLogin.classList.add('hidden');
+    sentHint.classList.add('hidden');
+    connecte.classList.remove('hidden');
+    emailSpan.textContent = session.user.email + (peutEditer ? '' : ' (non autorisé)');
+  } else {
+    formLogin.classList.remove('hidden');
+    sentHint.classList.add('hidden');
+    connecte.classList.add('hidden');
+  }
+
+  tabAdminBtn.classList.toggle('hidden', !estAdmin);
+  if (!estAdmin && document.getElementById('tab-admin').classList.contains('active')) {
+    document.querySelector('.tab-btn[data-tab="saisie"]').click();
+  }
+
+  document.getElementById('form-etape').classList.toggle('hidden', !peutEditer);
+  document.getElementById('saisie-connexion-requise').classList.toggle('hidden', peutEditer);
+  document.getElementById('form-voyageur').classList.toggle('hidden', !peutEditer);
+  document.getElementById('voyageurs-connexion-requise').classList.toggle('hidden', peutEditer);
+}
+
+async function gererSession(session) {
+  if (session && session.user) {
+    const { data, error } = await sb.rpc('voyage_mon_statut');
+    if (!error && data && data.length) {
+      peutEditer = !!data[0].autorise;
+      estAdmin = !!data[0].admin;
+    } else {
+      peutEditer = false;
+      estAdmin = false;
+    }
+  } else {
+    peutEditer = false;
+    estAdmin = false;
+  }
+
+  mettreAJourUIAuth(session);
+  afficherListeSaisie();
+  afficherVoyage();
+  afficherListeVoyageurs();
+}
+
+sb.auth.onAuthStateChange(function (event, session) {
+  gererSession(session);
+});
+
+// ---- Onglet Admin (comptes autorisés) ----
+
+async function chargerUtilisateursAdmin() {
+  if (!estAdmin) return;
+  const { data, error } = await sb
+    .from('voyage_utilisateurs')
+    .select('email, is_admin')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+  utilisateursAdmin = data;
+  afficherListeAdmin();
+}
+
+function afficherListeAdmin() {
+  const cible = document.getElementById('liste-admin-utilisateurs');
+  if (utilisateursAdmin.length === 0) {
+    cible.innerHTML = '<div class="vide">Aucun compte autorisé pour le moment.</div>';
+    return;
+  }
+  cible.innerHTML = utilisateursAdmin.map(function (u) {
+    return '<div class="ligne-voyageur"><span class="nom">' + escapeHTML(u.email) +
+      (u.is_admin ? '<span class="badge-admin">Admin</span>' : '') + '</span>' +
+      '<button onclick="supprimerUtilisateurAdmin(\'' + encodeURIComponent(u.email) + '\')">Supprimer</button></div>';
+  }).join('');
+}
+
+document.getElementById('form-admin-utilisateur').addEventListener('submit', async function (evt) {
+  evt.preventDefault();
+  const email = document.getElementById('admin-email').value.trim();
+  const isAdminCheck = document.getElementById('admin-est-admin').checked;
+  if (!email) return;
+
+  const { error } = await sb.from('voyage_utilisateurs').upsert({ email: email, is_admin: isAdminCheck });
+  if (error) {
+    alert('Erreur : ' + error.message);
+    return;
+  }
+  document.getElementById('form-admin-utilisateur').reset();
+  await chargerUtilisateursAdmin();
+});
+
+async function supprimerUtilisateurAdmin(emailEncode) {
+  const email = decodeURIComponent(emailEncode);
+  if (!confirm('Retirer l\'accès de ' + email + ' ?')) return;
+  const { error } = await sb.from('voyage_utilisateurs').delete().eq('email', email);
+  if (error) {
+    alert('Erreur : ' + error.message);
+    return;
+  }
+  await chargerUtilisateursAdmin();
+}
+
 chargerEtapes();
 chargerVoyageurs();
+sb.auth.getSession().then(function (res) { gererSession(res.data.session); });

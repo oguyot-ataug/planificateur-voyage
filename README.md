@@ -26,6 +26,21 @@ copier-coller manuel.
 | `app.js` | Logique client : chargement/sauvegarde Supabase, onglets, carte, budget |
 | `apps-script-legacy/` | Ancienne version Google Apps Script + Sheets, conservée pour référence |
 
+## Authentification
+
+- Connexion par **lien magique** (email, sans mot de passe) via Supabase Auth.
+- Table `voyage_utilisateurs` (email, is_admin) : liste blanche des comptes autorisés
+  à modifier des données. Se connecter via Supabase Auth ne suffit pas — il faut
+  aussi être dans cette table (vérifié côté RLS par `voyage_is_authorized()` /
+  `voyage_is_admin()`, pas seulement côté interface).
+- Lecture (consultation du voyage) publique et sans connexion. Écriture (ajout,
+  modification, suppression) réservée aux comptes autorisés.
+- Onglet "Admin" (gestion des comptes autorisés) visible uniquement si
+  `voyage_utilisateurs.is_admin = true` pour l'email connecté.
+- ⚠️ Config requise dans le dashboard Supabase : Authentication → URL
+  Configuration → ajouter `https://oguyot-ataug.github.io/planificateur-voyage/`
+  dans "Redirect URLs", sinon le lien magique ne redirige pas correctement.
+
 ## Schéma Supabase (`voyage_*`)
 
 - `voyage_voyageurs` — les personnes du voyage (`id`, `nom`)
