@@ -63,3 +63,5 @@ le code source public.
   budget partagé.
 - Migré vers GitHub Pages + Supabase pour permettre des modifications rapides
   du code sans copier-coller manuel dans l'éditeur Apps Script.
+
+<!-- trigger pages build -->
