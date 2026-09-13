@@ -71,10 +71,11 @@ function sceneAvionHTML() {
     '<svg class="scene-nuage n1" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
     '<svg class="scene-nuage n2" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
     '<svg class="scene-nuage n3" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
-    '<div class="scene-piste piste-gauche"></div>' +
-    '<div class="scene-piste piste-droite"></div>' +
+    '<svg class="scene-nuage n4" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
+    '<div class="scene-piste"></div>' +
     '<div class="scene-avion-wrap">' +
     '<svg class="scene-avion" viewBox="0 0 140 50" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M45 32 L18 45 L52 34 Z" fill="#ffffff" opacity="0.95"/>' +
     '<path d="M10 30 Q10 22 20 22 L100 22 L125 28 L100 34 L20 34 Q10 34 10 30 Z" fill="#ffffff"/>' +
     '<path d="M22 22 L15 7 L28 22 Z" fill="#ffffff"/>' +
     '<path d="M23 31 L11 38 L27 34 Z" fill="#ffffff" opacity="0.95"/>' +
