@@ -159,6 +159,7 @@ function libelleLignes(type) {
 }
 
 let etapes = [];
+let etapesInvite = [];
 let voyageurs = [];
 let lignesForm = [];
 let photoForm = null;
@@ -580,7 +581,7 @@ async function toggleCarte(id, contexte) {
     return;
   }
 
-  const e = etapes.find(function (x) { return x.id === id; });
+  const e = etapes.find(function (x) { return x.id === id; }) || etapesInvite.find(function (x) { return x.id === id; });
   if (!e) return;
 
   if (itineraireDisponible(e)) {
@@ -1328,7 +1329,7 @@ document.getElementById('form-code-acces').addEventListener('submit', async func
 
 function afficherListeInvite(lignes) {
   const cible = document.getElementById('liste-invite');
-  const etapesInvite = lignes.map(function (row) {
+  etapesInvite = lignes.map(function (row) {
     return {
       id: row.id,
       type: row.type,
@@ -1382,6 +1383,7 @@ async function resoudreVideosInvite(code) {
 }
 
 function carteInviteHTML(e) {
+  const aUneCarte = !!(e.lieu || e.lieuArrivee);
   return '' +
     '<div class="carte ' + e.type + '">' +
     (e.videoPath ? '<video class="carte-video" data-video-path="' + escapeHTML(e.videoPath) + '" muted loop playsinline autoplay></video>' : (e.photo ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : sceneHTMLPour(e))) +
@@ -1396,7 +1398,11 @@ function carteInviteHTML(e) {
     (e.lieu ? '<div class="carte-lieu"><span class="material-symbols-rounded">place</span> ' + escapeHTML(e.lieu) +
       (e.lieuArrivee ? ' → ' + escapeHTML(e.lieuArrivee) : '') + '</div>' : '') +
     (e.details ? '<div class="carte-details">' + escapeHTML(e.details) + '</div>' : '') +
-    (e.lienInfo ? '    <div class="carte-actions"><a class="lien-reservation lien-info" href="' + escapeHTML(e.lienInfo) + '" target="_blank" rel="noopener"><span class="material-symbols-rounded">language</span> Site</a></div>' : '') +
+    (aUneCarte || e.lienInfo ? '    <div class="carte-actions">' +
+      (aUneCarte ? '<button onclick="toggleCarte(\'' + e.id + '\',\'invite\')"><span class="material-symbols-rounded">map</span> Voir la carte</button>' : '') +
+      (e.lienInfo ? '<a class="lien-reservation lien-info" href="' + escapeHTML(e.lienInfo) + '" target="_blank" rel="noopener"><span class="material-symbols-rounded">language</span> Site</a>' : '') +
+      '</div>' : '') +
+    (aUneCarte ? '    <div id="carte-map-invite-' + e.id + '" class="carte-map hidden"></div>' : '') +
     '  </div>' +
     '  </div>' +
     '</div>';
