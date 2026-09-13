@@ -315,7 +315,7 @@ document.querySelectorAll('.tab-btn').forEach(function (btn) {
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'budget') afficherBudget();
-    if (btn.dataset.tab === 'carte') afficherCarteEnsemble();
+    if (btn.dataset.tab === 'carte') afficherCarteEnsemble('carte-ensemble-conteneur', etapes);
     if (btn.dataset.tab === 'admin') { chargerUtilisateursAdmin(); chargerCodeInviteActuel(); }
   });
 });
@@ -575,9 +575,9 @@ function afficherItineraireJS(conteneurInfo, conteneurCarte, e) {
 
 // ---- Carte d'ensemble du voyage (tous les lieux, dans l'ordre chronologique) ----
 
-function pointsCarteEnsemble() {
+function pointsCarteEnsemble(source) {
   const points = [];
-  etapes.forEach(function (e) {
+  source.forEach(function (e) {
     if (e.lieu) points.push({ adresse: e.lieu, label: e.titre });
     if (e.lieuArrivee) points.push({ adresse: e.lieuArrivee, label: e.titre + ' (arrivée)' });
   });
@@ -609,9 +609,11 @@ function geocoderAdresse(geocoder, cache, adresse) {
   });
 }
 
-async function afficherCarteEnsemble() {
-  const conteneur = document.getElementById('carte-ensemble-conteneur');
-  const points = pointsCarteEnsemble();
+async function afficherCarteEnsemble(idConteneur, source) {
+  idConteneur = idConteneur || 'carte-ensemble-conteneur';
+  source = source || etapes;
+  const conteneur = document.getElementById(idConteneur);
+  const points = pointsCarteEnsemble(source);
 
   if (points.length === 0) {
     conteneur.innerHTML = '<div class="vide">Aucune étape avec un lieu renseigné pour le moment.</div>';
@@ -627,7 +629,7 @@ async function afficherCarteEnsemble() {
     return;
   }
 
-  conteneur.innerHTML = '<div class="itineraire-info" id="carte-ensemble-distance"></div><div class="carte-ensemble-canvas"></div>';
+  conteneur.innerHTML = '<div class="itineraire-info" id="' + idConteneur + '-distance"></div><div class="carte-ensemble-canvas"></div>';
   const map = new google.maps.Map(conteneur.querySelector('.carte-ensemble-canvas'), { zoom: 6, center: { lat: 40.0, lng: -3.7 } });
   const geocoder = new google.maps.Geocoder();
   const cache = new Map();
@@ -663,10 +665,10 @@ async function afficherCarteEnsemble() {
         directionsRenderer.setDirections(resultat);
         const totalMetres = resultat.routes[0].legs.reduce(function (somme, l) { return somme + l.distance.value; }, 0);
         const totalKm = Math.round(totalMetres / 1000);
-        document.getElementById('carte-ensemble-distance').textContent = 'Distance totale en voiture : ' + totalKm.toLocaleString('fr-FR') + ' km';
+        document.getElementById(idConteneur + '-distance').textContent = 'Distance totale en voiture : ' + totalKm.toLocaleString('fr-FR') + ' km';
       } else {
         console.error('Directions API status (carte d\'ensemble):', statut);
-        document.getElementById('carte-ensemble-distance').textContent = '';
+        document.getElementById(idConteneur + '-distance').textContent = '';
         new google.maps.Polyline({
           path: positions,
           map: map,
@@ -1451,6 +1453,7 @@ async function accederEnInvite(code) {
   modeInviteActif = true;
   afficherListeInvite(data);
   resoudreVideosInvite(code);
+  afficherCarteEnsemble('carte-ensemble-invite-conteneur', etapesInvite);
 }
 
 // Accès direct via URL (?code=...), sans passer par le formulaire
