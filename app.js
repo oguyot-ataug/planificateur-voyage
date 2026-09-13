@@ -313,7 +313,7 @@ document.querySelectorAll('.tab-btn').forEach(function (btn) {
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'budget') afficherBudget();
-    if (btn.dataset.tab === 'admin') chargerUtilisateursAdmin();
+    if (btn.dataset.tab === 'admin') { chargerUtilisateursAdmin(); chargerCodeInviteActuel(); }
   });
 });
 
@@ -1261,6 +1261,7 @@ function mettreAJourUIAuth(session) {
 
   document.getElementById('contenu-protege').classList.toggle('hidden', !peutEditer);
   document.getElementById('non-connecte-message').classList.toggle('hidden', peutEditer);
+  document.getElementById('btn-toggle-invite').classList.toggle('hidden', peutEditer);
 }
 
 async function gererSession(session) {
@@ -1295,6 +1296,113 @@ async function gererSession(session) {
 sb.auth.onAuthStateChange(function (event, session) {
   gererSession(session);
 });
+
+// ---- Accès invité (code secret, lecture seule sans compte) ----
+
+document.getElementById('btn-toggle-invite').addEventListener('click', function () {
+  document.getElementById('form-code-acces').classList.toggle('hidden');
+});
+
+document.getElementById('form-code-acces').addEventListener('submit', async function (evt) {
+  evt.preventDefault();
+  const code = document.getElementById('code-acces-input').value.trim();
+  if (!code) return;
+
+  const { data, error } = await sb.rpc('voyage_etapes_invite', { code: code });
+  if (error) {
+    alert('Erreur : ' + error.message);
+    return;
+  }
+  if (!data || data.length === 0) {
+    alert('Code invalide, ou aucune étape à afficher pour le moment.');
+    return;
+  }
+
+  document.getElementById('auth-bar').classList.add('hidden');
+  document.getElementById('non-connecte-message').classList.add('hidden');
+  document.querySelector('.tabs').classList.add('hidden');
+  document.getElementById('vue-invite').classList.remove('hidden');
+  afficherListeInvite(data);
+});
+
+function afficherListeInvite(lignes) {
+  const cible = document.getElementById('liste-invite');
+  const etapesInvite = lignes.map(function (row) {
+    return {
+      id: row.id,
+      type: row.type,
+      sousType: row.sous_type,
+      titre: row.titre,
+      lieu: row.lieu,
+      lieuArrivee: row.lieu_arrivee,
+      dateDebut: row.date_debut,
+      heureDebut: heureCourte(row.heure_debut),
+      dateFin: row.date_fin,
+      heureFin: heureCourte(row.heure_fin),
+      details: row.details,
+      lien: row.lien,
+      lienInfo: row.lien_info,
+      photo: row.photo
+    };
+  });
+
+  let html = '';
+  let jourCourant = null;
+  etapesInvite.forEach(function (e) {
+    if (e.dateDebut !== jourCourant) {
+      jourCourant = e.dateDebut;
+      html += '<div class="jour-titre">' + formaterDate(jourCourant) + '</div>';
+    }
+    html += carteInviteHTML(e);
+  });
+  cible.innerHTML = html;
+}
+
+function carteInviteHTML(e) {
+  return '' +
+    '<div class="carte ' + e.type + '">' +
+    (e.photo ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : sceneHTMLPour(e)) +
+    '  <div class="carte-content">' +
+    '  <div class="carte-icone"><span class="material-symbols-rounded">' + iconePour(e) + '</span></div>' +
+    '  <div class="carte-body">' +
+    '    <div class="carte-top">' +
+    '      <span class="carte-type">' + libellePour(e) + '</span>' +
+    '      <span class="carte-heure">' + ligneHoraire(e) + '</span>' +
+    '    </div>' +
+    '    <div class="carte-titre">' + escapeHTML(e.titre) + '</div>' +
+    (e.lieu ? '<div class="carte-lieu"><span class="material-symbols-rounded">place</span> ' + escapeHTML(e.lieu) +
+      (e.lieuArrivee ? ' → ' + escapeHTML(e.lieuArrivee) : '') + '</div>' : '') +
+    (e.details ? '<div class="carte-details">' + escapeHTML(e.details) + '</div>' : '') +
+    '    <div class="carte-actions">' +
+    (e.lien ? '      <a class="lien-reservation" href="' + escapeHTML(e.lien) + '" target="_blank" rel="noopener"><span class="material-symbols-rounded">confirmation_number</span> Réservation</a>' : '') +
+    (e.lienInfo ? '      <a class="lien-reservation lien-info" href="' + escapeHTML(e.lienInfo) + '" target="_blank" rel="noopener"><span class="material-symbols-rounded">language</span> Site</a>' : '') +
+    '    </div>' +
+    '  </div>' +
+    '  </div>' +
+    '</div>';
+}
+
+// ---- Gestion du code invité (onglet Admin) ----
+
+document.getElementById('form-code-invite').addEventListener('submit', async function (evt) {
+  evt.preventDefault();
+  const nouveauCode = document.getElementById('admin-code-invite').value.trim();
+  if (!nouveauCode) return;
+
+  const { data, error } = await sb.rpc('voyage_definir_code_invite', { nouveau_code: nouveauCode });
+  if (error || !data) {
+    alert('Erreur : ' + (error ? error.message : 'accès refusé.'));
+    return;
+  }
+  alert('Code mis à jour.');
+});
+
+async function chargerCodeInviteActuel() {
+  const { data, error } = await sb.rpc('voyage_lire_code_invite');
+  if (!error && data) {
+    document.getElementById('admin-code-invite').value = data;
+  }
+}
 
 // ---- Onglet Admin (comptes autorisés) ----
 
