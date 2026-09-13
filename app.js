@@ -15,6 +15,8 @@ const ICONES_TRANSPORT = {
   'Voiture': 'directions_car',
   'Bus': 'directions_bus',
   'Bateau': 'directions_boat',
+  'Marche': 'directions_walk',
+  'Vélo': 'directions_bike',
   'Autre': 'more_horiz'
 };
 
@@ -333,24 +335,35 @@ function chargerGoogleMapsJS() {
     if (window.google && window.google.maps) { resolve(); return; }
     window.__googleMapsJSReady = resolve;
     const script = document.createElement('script');
-    script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(window.MAPS_API_KEY) + '&loading=async&callback=__googleMapsJSReady';
+    script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(window.MAPS_API_KEY) + '&loading=async&language=fr&region=FR&callback=__googleMapsJSReady';
     script.onerror = function () { reject(new Error('Échec du chargement de Google Maps.')); };
     document.head.appendChild(script);
   });
   return chargementGoogleMapsJS;
 }
 
-function afficherItineraireJS(conteneurCarte, e) {
+function modeItinerairePour(e) {
+  if (e.type === 'Location') return google.maps.TravelMode.DRIVING;
+  if (e.sousType === 'Train') return google.maps.TravelMode.TRANSIT;
+  if (e.sousType === 'Marche') return google.maps.TravelMode.WALKING;
+  if (e.sousType === 'Vélo') return google.maps.TravelMode.BICYCLING;
+  return google.maps.TravelMode.DRIVING;
+}
+
+function afficherItineraireJS(conteneurInfo, conteneurCarte, e) {
   const map = new google.maps.Map(conteneurCarte, { zoom: 8, center: { lat: 40, lng: 0 } });
   const service = new google.maps.DirectionsService();
   const renderer = new google.maps.DirectionsRenderer({ map: map });
-  const mode = (e.sousType === 'Train') ? google.maps.TravelMode.TRANSIT : google.maps.TravelMode.DRIVING;
+  const mode = modeItinerairePour(e);
 
   service.route({ origin: e.lieu, destination: e.lieuArrivee, travelMode: mode }, function (resultat, statut) {
     if (statut === 'OK') {
       renderer.setDirections(resultat);
+      const trajet = resultat.routes[0].legs[0];
+      conteneurInfo.textContent = trajet.duration.text + ' · ' + trajet.distance.text;
     } else {
       console.error('Directions API status:', statut);
+      conteneurInfo.textContent = '';
       conteneurCarte.innerHTML = '<div class="vide">Itinéraire indisponible (' + statut + ').</div>';
     }
   });
@@ -371,11 +384,11 @@ async function toggleCarte(id, contexte) {
   if (!e) return;
 
   if (itineraireDisponible(e)) {
-    conteneur.innerHTML = '<div class="carte-map-canvas"></div>';
+    conteneur.innerHTML = '<div class="itineraire-info"></div><div class="carte-map-canvas"></div>';
     conteneur.classList.remove('hidden');
     try {
       await chargerGoogleMapsJS();
-      afficherItineraireJS(conteneur.firstChild, e);
+      afficherItineraireJS(conteneur.querySelector('.itineraire-info'), conteneur.querySelector('.carte-map-canvas'), e);
     } catch (err) {
       conteneur.innerHTML = '<div class="vide">Carte indisponible.</div>';
     }
