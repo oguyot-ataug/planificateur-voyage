@@ -594,9 +594,17 @@ function geocoderAdresse(geocoder, cache, adresse) {
   if (cache.has(adresse)) return Promise.resolve(cache.get(adresse));
   return new Promise(function (resolve) {
     geocoder.geocode({ address: adresse }, function (resultats, statut) {
-      const position = (statut === 'OK' && resultats && resultats[0]) ? resultats[0].geometry.location : null;
-      cache.set(adresse, position);
-      resolve(position);
+      let info = null;
+      if (statut === 'OK' && resultats && resultats[0]) {
+        const resultat = resultats[0];
+        const composantPays = resultat.address_components.find(function (c) { return c.types.indexOf('country') !== -1; });
+        info = {
+          position: resultat.geometry.location,
+          pays: composantPays ? composantPays.short_name : null
+        };
+      }
+      cache.set(adresse, info);
+      resolve(info);
     });
   });
 }
@@ -626,11 +634,11 @@ async function afficherCarteEnsemble() {
   const positions = [];
 
   for (let i = 0; i < points.length; i++) {
-    const position = await geocoderAdresse(geocoder, cache, points[i].adresse);
-    if (!position) continue;
-    positions.push(position);
+    const info = await geocoderAdresse(geocoder, cache, points[i].adresse);
+    if (!info || !info.position || info.pays !== 'ES') continue;
+    positions.push(info.position);
     new google.maps.Marker({
-      position: position,
+      position: info.position,
       map: map,
       label: String(positions.length),
       title: points[i].label
@@ -652,7 +660,7 @@ async function afficherCarteEnsemble() {
     positions.forEach(function (p) { bounds.extend(p); });
     map.fitBounds(bounds);
   } else {
-    conteneur.innerHTML = '<div class="vide">Impossible de localiser les lieux saisis.</div>';
+    conteneur.innerHTML = '<div class="vide">Aucun lieu en Espagne n\'a pu être localisé.</div>';
   }
 }
 
