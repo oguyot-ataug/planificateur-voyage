@@ -596,6 +596,7 @@
     padding: 12px 14px;
   }
   .ligne-voyageur .nom { font-weight: 700; font-size: 14.5px; }
+  .ligne-actions { display: flex; gap: 6px; flex-shrink: 0; }
   .ligne-voyageur button {
     font-size: 12px;
     font-weight: 600;

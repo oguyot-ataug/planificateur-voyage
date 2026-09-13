@@ -1345,8 +1345,46 @@ function afficherListeAdmin() {
       (u.voyageur_nom ? ' <span class="badge-voyageur">' + escapeHTML(u.voyageur_nom) + '</span>' : '') +
       (u.is_admin ? '<span class="badge-admin">Admin</span>' : '') +
       '<br>' + formaterConnexion(u) + '</span>' +
-      '<button onclick="supprimerUtilisateurAdmin(\'' + encodeURIComponent(u.email) + '\')">Supprimer</button></div>';
+      '<span class="ligne-actions">' +
+      '<button onclick="definirMotDePasseUtilisateur(\'' + encodeURIComponent(u.email) + '\')">Mot de passe</button>' +
+      '<button onclick="supprimerUtilisateurAdmin(\'' + encodeURIComponent(u.email) + '\')">Supprimer</button>' +
+      '</span></div>';
   }).join('');
+}
+
+async function definirMotDePasseUtilisateur(emailEncode) {
+  const email = decodeURIComponent(emailEncode);
+  const motDePasse = prompt('Nouveau mot de passe pour ' + email + ' (6 caractères minimum) :');
+  if (!motDePasse) return;
+  if (motDePasse.length < 6) {
+    alert('Le mot de passe doit faire au moins 6 caractères.');
+    return;
+  }
+
+  const { data: sessionData } = await sb.auth.getSession();
+  if (!sessionData.session) {
+    alert('Session expirée, reconnecte-toi.');
+    return;
+  }
+
+  try {
+    const reponse = await fetch(window.SUPABASE_URL + '/functions/v1/admin-set-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + sessionData.session.access_token
+      },
+      body: JSON.stringify({ email: email, password: motDePasse })
+    });
+    const resultat = await reponse.json();
+    if (!reponse.ok || resultat.error) {
+      alert('Erreur : ' + (resultat.error || reponse.statusText));
+      return;
+    }
+    alert('Mot de passe mis à jour pour ' + email + '.');
+  } catch (err) {
+    alert('Erreur réseau : ' + err.message);
+  }
 }
 
 document.getElementById('form-admin-utilisateur').addEventListener('submit', async function (evt) {
