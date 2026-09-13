@@ -315,6 +315,7 @@ document.querySelectorAll('.tab-btn').forEach(function (btn) {
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'budget') afficherBudget();
+    if (btn.dataset.tab === 'carte') afficherCarteEnsemble();
     if (btn.dataset.tab === 'admin') { chargerUtilisateursAdmin(); chargerCodeInviteActuel(); }
   });
 });
@@ -570,6 +571,89 @@ function afficherItineraireJS(conteneurInfo, conteneurCarte, e) {
       conteneurCarte.innerHTML = '<div class="vide">Itinéraire indisponible (' + statut + ').</div>';
     }
   });
+}
+
+// ---- Carte d'ensemble du voyage (tous les lieux, dans l'ordre chronologique) ----
+
+function pointsCarteEnsemble() {
+  const points = [];
+  etapes.forEach(function (e) {
+    if (e.lieu) points.push({ adresse: e.lieu, label: e.titre });
+    if (e.lieuArrivee) points.push({ adresse: e.lieuArrivee, label: e.titre + ' (arrivée)' });
+  });
+  // Fusionne les points consécutifs identiques (ex : arrivée d'une étape = départ de la suivante)
+  const dedupliques = [];
+  points.forEach(function (p) {
+    const precedent = dedupliques[dedupliques.length - 1];
+    if (!precedent || precedent.adresse !== p.adresse) dedupliques.push(p);
+  });
+  return dedupliques;
+}
+
+function geocoderAdresse(geocoder, cache, adresse) {
+  if (cache.has(adresse)) return Promise.resolve(cache.get(adresse));
+  return new Promise(function (resolve) {
+    geocoder.geocode({ address: adresse }, function (resultats, statut) {
+      const position = (statut === 'OK' && resultats && resultats[0]) ? resultats[0].geometry.location : null;
+      cache.set(adresse, position);
+      resolve(position);
+    });
+  });
+}
+
+async function afficherCarteEnsemble() {
+  const conteneur = document.getElementById('carte-ensemble-conteneur');
+  const points = pointsCarteEnsemble();
+
+  if (points.length === 0) {
+    conteneur.innerHTML = '<div class="vide">Aucune étape avec un lieu renseigné pour le moment.</div>';
+    return;
+  }
+
+  conteneur.innerHTML = '<div class="vide">Chargement de la carte…</div>';
+
+  try {
+    await chargerGoogleMapsJS();
+  } catch (err) {
+    conteneur.innerHTML = '<div class="vide">Carte indisponible.</div>';
+    return;
+  }
+
+  conteneur.innerHTML = '<div class="carte-ensemble-canvas"></div>';
+  const map = new google.maps.Map(conteneur.querySelector('.carte-ensemble-canvas'), { zoom: 5, center: { lat: 20, lng: 0 } });
+  const geocoder = new google.maps.Geocoder();
+  const cache = new Map();
+  const positions = [];
+
+  for (let i = 0; i < points.length; i++) {
+    const position = await geocoderAdresse(geocoder, cache, points[i].adresse);
+    if (!position) continue;
+    positions.push(position);
+    new google.maps.Marker({
+      position: position,
+      map: map,
+      label: String(positions.length),
+      title: points[i].label
+    });
+  }
+
+  if (positions.length > 1) {
+    new google.maps.Polyline({
+      path: positions,
+      map: map,
+      strokeColor: '#C60B1E',
+      strokeOpacity: 0.85,
+      strokeWeight: 3
+    });
+  }
+
+  if (positions.length > 0) {
+    const bounds = new google.maps.LatLngBounds();
+    positions.forEach(function (p) { bounds.extend(p); });
+    map.fitBounds(bounds);
+  } else {
+    conteneur.innerHTML = '<div class="vide">Impossible de localiser les lieux saisis.</div>';
+  }
 }
 
 async function toggleCarte(id, contexte) {
