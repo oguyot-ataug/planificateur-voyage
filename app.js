@@ -1318,7 +1318,16 @@ function remplirSelectVoyageursAdmin() {
 
 function formaterConnexion(u) {
   if (!u.compte_cree) return '<span class="statut-connexion jamais">Jamais connecté</span>';
-  if (!u.derniere_connexion) return '<span class="statut-connexion jamais">Compte créé, jamais connecté</span>';
+
+  const cree = new Date(u.compte_cree_le).getTime();
+  const derniere = u.derniere_connexion ? new Date(u.derniere_connexion).getTime() : null;
+
+  // La toute première "connexion" est un artefact de la création du compte (quasi simultanée) —
+  // seule une connexion nettement postérieure prouve un vrai clic sur le lien reçu par email.
+  if (!derniere || (derniere - cree) < 5000) {
+    return '<span class="statut-connexion jamais">Compte créé, jamais réellement connecté</span>';
+  }
+
   const d = new Date(u.derniere_connexion);
   const texte = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) +
     ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
