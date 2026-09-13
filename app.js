@@ -168,6 +168,7 @@ let videoEnCoursUpload = false;
 let peutEditer = false;
 let estAdmin = false;
 let monVoyageurNom = null;
+let modeInviteActif = false;
 let utilisateursAdmin = [];
 
 function genId() {
@@ -1240,6 +1241,8 @@ document.getElementById('form-set-password').addEventListener('submit', async fu
 });
 
 function mettreAJourUIAuth(session) {
+  if (modeInviteActif) return;
+
   const formLogin = document.getElementById('form-login');
   const sentHint = document.getElementById('login-sent-hint');
   const connecte = document.getElementById('auth-connecte');
@@ -1312,7 +1315,10 @@ document.getElementById('form-code-acces').addEventListener('submit', async func
   evt.preventDefault();
   const code = document.getElementById('code-acces-input').value.trim();
   if (!code) return;
+  await accederEnInvite(code);
+});
 
+async function accederEnInvite(code) {
   const { data, error } = await sb.rpc('voyage_etapes_invite', { code: code });
   if (error) {
     alert('Erreur : ' + error.message);
@@ -1327,9 +1333,16 @@ document.getElementById('form-code-acces').addEventListener('submit', async func
   document.getElementById('non-connecte-message').classList.add('hidden');
   document.querySelector('.tabs').classList.add('hidden');
   document.getElementById('vue-invite').classList.remove('hidden');
+  modeInviteActif = true;
   afficherListeInvite(data);
   resoudreVideosInvite(code);
-});
+}
+
+// Accès direct via URL (?code=...), sans passer par le formulaire
+const codeDepuisUrl = new URLSearchParams(window.location.search).get('code');
+if (codeDepuisUrl) {
+  accederEnInvite(codeDepuisUrl);
+}
 
 function afficherListeInvite(lignes) {
   const cible = document.getElementById('liste-invite');
