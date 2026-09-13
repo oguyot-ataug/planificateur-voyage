@@ -331,6 +331,10 @@
     border: 0;
     display: block;
   }
+  .carte-map-canvas {
+    width: 100%;
+    height: 220px;
+  }
 
   .carte-lieu {
     display: flex;

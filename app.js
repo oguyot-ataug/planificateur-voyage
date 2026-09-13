@@ -303,28 +303,14 @@ function libellePour(e) {
   return e.type;
 }
 
+/** Un lieu simple reste affiché via l'iframe Embed API (pas de bandeau gênant dans ce mode) */
 function urlCartePour(e) {
   const cle = window.MAPS_API_KEY;
   if (!cle) return null;
 
-  if (e.type === 'Transport' && e.lieu && e.lieuArrivee) {
-    // L'API Maps Embed ne sait tracer que des itinéraires de surface
-    // (voiture, vélo, marche, transport en commun) — pas de vol ni de traversée maritime.
-    if (e.sousType === 'Avion' || e.sousType === 'Bateau') {
-      return 'https://www.google.com/maps/embed/v1/place?key=' + cle +
-        '&q=' + encodeURIComponent(e.lieuArrivee);
-    }
-    const mode = (e.sousType === 'Train') ? 'transit' : 'driving';
-    return 'https://www.google.com/maps/embed/v1/directions?key=' + cle +
-      '&origin=' + encodeURIComponent(e.lieu) +
-      '&destination=' + encodeURIComponent(e.lieuArrivee) +
-      '&mode=' + mode;
-  }
-  if (e.type === 'Location' && e.lieu && e.lieuArrivee) {
-    return 'https://www.google.com/maps/embed/v1/directions?key=' + cle +
-      '&origin=' + encodeURIComponent(e.lieu) +
-      '&destination=' + encodeURIComponent(e.lieuArrivee) +
-      '&mode=driving';
+  if (e.type === 'Transport' && (e.sousType === 'Avion' || e.sousType === 'Bateau') && e.lieuArrivee) {
+    return 'https://www.google.com/maps/embed/v1/place?key=' + cle +
+      '&q=' + encodeURIComponent(e.lieuArrivee);
   }
   if (e.lieu) {
     return 'https://www.google.com/maps/embed/v1/place?key=' + cle +
@@ -333,17 +319,69 @@ function urlCartePour(e) {
   return null;
 }
 
-function toggleCarte(id, contexte) {
+/** Un itinéraire (deux points) passe par l'API JavaScript pour éviter le bandeau d'infos de l'Embed API */
+function itineraireDisponible(e) {
+  if (e.type === 'Transport' && e.lieu && e.lieuArrivee && e.sousType !== 'Avion' && e.sousType !== 'Bateau') return true;
+  if (e.type === 'Location' && e.lieu && e.lieuArrivee) return true;
+  return false;
+}
+
+let chargementGoogleMapsJS = null;
+function chargerGoogleMapsJS() {
+  if (chargementGoogleMapsJS) return chargementGoogleMapsJS;
+  chargementGoogleMapsJS = new Promise(function (resolve, reject) {
+    if (window.google && window.google.maps) { resolve(); return; }
+    window.__googleMapsJSReady = resolve;
+    const script = document.createElement('script');
+    script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(window.MAPS_API_KEY) + '&loading=async&callback=__googleMapsJSReady';
+    script.onerror = function () { reject(new Error('Échec du chargement de Google Maps.')); };
+    document.head.appendChild(script);
+  });
+  return chargementGoogleMapsJS;
+}
+
+function afficherItineraireJS(conteneurCarte, e) {
+  const map = new google.maps.Map(conteneurCarte, { zoom: 8, center: { lat: 40, lng: 0 } });
+  const service = new google.maps.DirectionsService();
+  const renderer = new google.maps.DirectionsRenderer({ map: map });
+  const mode = (e.sousType === 'Train') ? google.maps.TravelMode.TRANSIT : google.maps.TravelMode.DRIVING;
+
+  service.route({ origin: e.lieu, destination: e.lieuArrivee, travelMode: mode }, function (resultat, statut) {
+    if (statut === 'OK') {
+      renderer.setDirections(resultat);
+    } else {
+      conteneurCarte.innerHTML = '<div class="vide">Itinéraire indisponible.</div>';
+    }
+  });
+}
+
+async function toggleCarte(id, contexte) {
   const conteneur = document.getElementById('carte-map-' + contexte + '-' + id);
   if (!conteneur) return;
+
   const ouverte = !conteneur.classList.contains('hidden');
   if (ouverte) {
     conteneur.classList.add('hidden');
     conteneur.innerHTML = '';
     return;
   }
+
   const e = etapes.find(function (x) { return x.id === id; });
-  const url = e ? urlCartePour(e) : null;
+  if (!e) return;
+
+  if (itineraireDisponible(e)) {
+    conteneur.innerHTML = '<div class="carte-map-canvas"></div>';
+    conteneur.classList.remove('hidden');
+    try {
+      await chargerGoogleMapsJS();
+      afficherItineraireJS(conteneur.firstChild, e);
+    } catch (err) {
+      conteneur.innerHTML = '<div class="vide">Carte indisponible.</div>';
+    }
+    return;
+  }
+
+  const url = urlCartePour(e);
   if (!url) return;
   conteneur.innerHTML = '<iframe src="' + url + '" loading="lazy" allowfullscreen></iframe>';
   conteneur.classList.remove('hidden');
