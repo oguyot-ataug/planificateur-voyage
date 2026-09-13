@@ -350,7 +350,8 @@ function afficherItineraireJS(conteneurCarte, e) {
     if (statut === 'OK') {
       renderer.setDirections(resultat);
     } else {
-      conteneurCarte.innerHTML = '<div class="vide">Itinéraire indisponible.</div>';
+      console.error('Directions API status:', statut);
+      conteneurCarte.innerHTML = '<div class="vide">Itinéraire indisponible (' + statut + ').</div>';
     }
   });
 }
