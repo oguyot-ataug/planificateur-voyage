@@ -227,6 +227,88 @@
     display: block;
   }
 
+  /* Scènes animées décoratives (transports sans photo) */
+  .carte-scene {
+    width: 100%;
+    height: 160px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(to bottom, #bfe3ff 0%, #dbeeff 60%, #dbeeff 60%, #7a8a99 60%, #94a3b3 100%);
+  }
+  .carte-scene .scene-icone {
+    position: absolute;
+    font-size: 42px;
+    color: #fff;
+    bottom: 22px;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.25));
+    animation: scene-avancer 7s linear infinite;
+  }
+  @keyframes scene-avancer {
+    from { left: -15%; }
+    to { left: 105%; }
+  }
+  .carte-scene.scene-route::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 44px;
+    height: 4px;
+    background-image: repeating-linear-gradient(to right, #fff 0 20px, transparent 20px 40px);
+  }
+
+  .carte-scene.scene-rail {
+    background: linear-gradient(to bottom, #bfe3ff 0%, #dbeeff 60%, #dbeeff 60%, #8a7a68 60%, #6b5c4c 100%);
+  }
+  .carte-scene.scene-rail::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 40px;
+    height: 10px;
+    background-image:
+      repeating-linear-gradient(to right, #4a3c2c 0 6px, transparent 6px 26px),
+      linear-gradient(#2b2b2b, #2b2b2b);
+    background-size: 100% 4px, 100% 3px;
+    background-position: top, bottom;
+    background-repeat: repeat-x, no-repeat;
+  }
+
+  .carte-scene.scene-mer {
+    background: linear-gradient(to bottom, #bfe3ff 0%, #cfe9ff 55%, #cfe9ff 55%, #2f7fbf 55%, #1e5f96 100%);
+  }
+  .carte-scene.scene-mer .scene-icone {
+    bottom: 34px;
+    animation: scene-avancer 8s linear infinite, scene-flotter 2.2s ease-in-out infinite;
+  }
+  @keyframes scene-flotter {
+    0%, 100% { margin-top: 0; }
+    50% { margin-top: -6px; }
+  }
+
+  .carte-scene.scene-ciel {
+    background: linear-gradient(to bottom, #a9d6ff 0%, #e8f5ff 100%);
+  }
+  .carte-scene.scene-ciel .scene-icone {
+    bottom: auto;
+    color: #2563eb;
+    animation: scene-vol 8s ease-in-out infinite;
+  }
+  @keyframes scene-vol {
+    0%   { left: -15%; top: 128px; transform: rotate(10deg); }
+    50%  { left: 46%; top: 18px; transform: rotate(0deg); }
+    100% { left: 105%; top: 128px; transform: rotate(10deg); }
+  }
+
+  .carte-scene.scene-marche .scene-pieton {
+    font-size: 32px;
+    bottom: 26px;
+    animation: scene-avancer 9s linear infinite, scene-rebond 0.45s ease-in-out infinite;
+  }
+  @keyframes scene-rebond {
+    0%, 100% { margin-bottom: 0; }
+    50% { margin-bottom: 6px; }
+  }
+
   .carte-content {
     display: flex;
     gap: 12px;

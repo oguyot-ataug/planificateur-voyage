@@ -20,6 +20,42 @@ const ICONES_TRANSPORT = {
   'Autre': 'more_horiz'
 };
 
+const ICONES_SCENE_TRANSPORT = {
+  'Voiture': 'directions_car',
+  'Bus': 'directions_bus',
+  'Vélo': 'directions_bike',
+  'Train': 'train',
+  'Bateau': 'directions_boat',
+  'Avion': 'flight'
+};
+
+function sceneClassePour(sousType) {
+  if (sousType === 'Avion') return 'scene-ciel';
+  if (sousType === 'Train') return 'scene-rail';
+  if (sousType === 'Bateau') return 'scene-mer';
+  return 'scene-route';
+}
+
+/** Petite animation CSS décorative en tête de carte quand il n'y a pas de photo (transports uniquement) */
+function sceneHTMLPour(e) {
+  if (e.type === 'Location') {
+    return '<div class="carte-scene scene-route"><span class="material-symbols-rounded scene-icone">directions_car</span></div>';
+  }
+  if (e.type !== 'Transport' || !e.sousType) return '';
+
+  if (e.sousType === 'Marche') {
+    return '<div class="carte-scene scene-route scene-marche">' +
+      [0, 1, 2, 3].map(function (i) {
+        return '<span class="material-symbols-rounded scene-icone scene-pieton" style="animation-delay:' + (i * 1.5) + 's">directions_walk</span>';
+      }).join('') +
+      '</div>';
+  }
+
+  const icone = ICONES_SCENE_TRANSPORT[e.sousType];
+  if (!icone) return '';
+  return '<div class="carte-scene ' + sceneClassePour(e.sousType) + '"><span class="material-symbols-rounded scene-icone">' + icone + '</span></div>';
+}
+
 // Types qui se décomposent en plusieurs lignes de coût (chambres, billets, parts...)
 // plutôt qu'un prix + des voyageurs concernés uniques.
 const TYPES_AVEC_LIGNES = ['Hébergement', 'Activité', 'Repas'];
@@ -454,7 +490,7 @@ function carteHTML(e, avecActions, contexte) {
 
   return '' +
     '<div class="carte ' + e.type + '">' +
-    (e.photo ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : '') +
+    (e.photo ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : sceneHTMLPour(e)) +
     '  <div class="carte-content">' +
     '  <div class="carte-icone"><span class="material-symbols-rounded">' + iconePour(e) + '</span></div>' +
     '  <div class="carte-body">' +
