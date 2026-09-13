@@ -18,9 +18,21 @@ const ICONES_TRANSPORT = {
   'Autre': 'more_horiz'
 };
 
+// Types qui se décomposent en plusieurs lignes de coût (chambres, billets, parts...)
+// plutôt qu'un prix + des voyageurs concernés uniques.
+const TYPES_AVEC_LIGNES = ['Hébergement', 'Activité', 'Repas'];
+const LIBELLES_LIGNES = {
+  'Hébergement': { singulier: 'Chambre', bouton: "Ajouter une chambre", titre: 'Chambres' },
+  'Activité': { singulier: 'Billet', bouton: 'Ajouter un billet', titre: 'Billets' },
+  'Repas': { singulier: 'Part', bouton: 'Ajouter une part', titre: 'Parts' }
+};
+function libelleLignes(type) {
+  return LIBELLES_LIGNES[type] || { singulier: 'Ligne', bouton: 'Ajouter une ligne', titre: 'Lignes' };
+}
+
 let etapes = [];
 let voyageurs = [];
-let chambresForm = [];
+let lignesForm = [];
 let peutEditer = false;
 let estAdmin = false;
 let monVoyageurNom = null;
@@ -75,13 +87,14 @@ document.querySelectorAll('#chips-type .chip').forEach(function (chip) {
     }
 
     const blocPrixVoyageurs = document.getElementById('bloc-prix-voyageurs');
-    const blocChambres = document.getElementById('bloc-chambres');
-    if (chip.dataset.type === 'Hébergement') {
-      blocChambres.classList.remove('hidden');
+    const blocLignes = document.getElementById('bloc-lignes');
+    if (TYPES_AVEC_LIGNES.includes(chip.dataset.type)) {
+      blocLignes.classList.remove('hidden');
       blocPrixVoyageurs.classList.add('hidden');
-      if (chambresForm.length === 0) ajouterChambre();
+      mettreAJourLabelsLignes(chip.dataset.type);
+      if (lignesForm.length === 0) ajouterLigne();
     } else {
-      blocChambres.classList.add('hidden');
+      blocLignes.classList.add('hidden');
       blocPrixVoyageurs.classList.remove('hidden');
     }
   });
@@ -95,6 +108,12 @@ document.querySelectorAll('#chips-soustype .chip').forEach(function (chip) {
     document.getElementById('etape-sousType').value = chip.dataset.soustype;
   });
 });
+
+function mettreAJourLabelsLignes(type) {
+  const lib = libelleLignes(type);
+  document.getElementById('label-lignes').textContent = lib.titre;
+  document.getElementById('btn-ajouter-ligne').lastChild.textContent = ' ' + lib.bouton;
+}
 
 // ---- Chargement des données ----
 
@@ -115,12 +134,12 @@ function mapEtapeFromDb(row) {
     prix: row.prix,
     payeurId: row.payeur_id,
     voyageurIds: (row.voyage_etape_voyageurs || []).map(function (v) { return v.voyageur_id; }),
-    chambres: (row.voyage_chambres || []).map(function (c) {
+    lignes: (row.voyage_lignes_cout || []).map(function (c) {
       return {
         id: c.id,
         prix: c.prix,
         payeurId: c.payeur_id,
-        voyageurIds: (c.voyage_chambre_voyageurs || []).map(function (v) { return v.voyageur_id; })
+        voyageurIds: (c.voyage_ligne_voyageurs || []).map(function (v) { return v.voyageur_id; })
       };
     })
   };
@@ -132,7 +151,7 @@ async function chargerEtapes() {
     .select(`
       id, type, sous_type, titre, lieu, lieu_arrivee, date_debut, heure_debut, date_fin, heure_fin, details, lien, prix, payeur_id,
       voyage_etape_voyageurs ( voyageur_id ),
-      voyage_chambres ( id, prix, payeur_id, voyage_chambre_voyageurs ( voyageur_id ) )
+      voyage_lignes_cout ( id, prix, payeur_id, voyage_ligne_voyageurs ( voyageur_id ) )
     `)
     .order('date_debut', { ascending: true })
     .order('heure_debut', { ascending: true });
@@ -163,7 +182,7 @@ async function chargerVoyageurs() {
   voyageurs = data;
   afficherChipsVoyageurs();
   afficherListeVoyageurs();
-  renderChambresForm();
+  renderLignesForm();
   remplirSelectVoyageursAdmin();
   const payeurActuel = document.getElementById('etape-payeur') ? document.getElementById('etape-payeur').value : '';
   afficherChipsPayeur(payeurActuel);
@@ -281,13 +300,13 @@ function nomsVoyageursPour(e) {
   return (e.voyageurIds || []).map(nomVoyageur).filter(Boolean);
 }
 
-/** Renvoie les lignes de coût d'une étape : une par chambre pour un hébergement, une seule sinon */
+/** Renvoie les lignes de coût d'une étape : plusieurs pour Hébergement/Activité/Repas, une seule sinon */
 function lignesCoutPour(e) {
-  if (e.type === 'Hébergement') {
-    return (e.chambres || [])
+  if (TYPES_AVEC_LIGNES.includes(e.type)) {
+    return (e.lignes || [])
       .filter(function (c) { return c.prix; })
       .map(function (c, i) {
-        return { prix: parseFloat(c.prix), ids: c.voyageurIds || [], payeurId: c.payeurId || null, titre: e.titre + ' — Chambre ' + (i + 1) };
+        return { prix: parseFloat(c.prix), ids: c.voyageurIds || [], payeurId: c.payeurId || null, titre: e.titre + ' — ' + libelleLignes(e.type).singulier + ' ' + (i + 1) };
       });
   }
   if (e.prix) {
@@ -309,16 +328,16 @@ function formaterPrix(prix) {
 function carteHTML(e, avecActions, contexte) {
   const aUneCarte = !!(e.lieu || e.lieuArrivee);
   const prixTotal = prixTotalPour(e);
-  const estHebergement = e.type === 'Hébergement';
-  const chambres = estHebergement ? (e.chambres || []) : [];
-  const noms = estHebergement ? [] : nomsVoyageursPour(e);
+  const aDesLignes = TYPES_AVEC_LIGNES.includes(e.type);
+  const lignes = aDesLignes ? (e.lignes || []) : [];
+  const noms = aDesLignes ? [] : nomsVoyageursPour(e);
 
-  const detailVoyageursHtml = estHebergement
-    ? (chambres.length ? '<div class="carte-chambres">' + chambres.map(function (c, i) {
-        const nomsChambre = (c.voyageurIds || []).map(nomVoyageur).filter(Boolean);
-        return '<div class="ligne-chambre-carte"><span class="chambre-num">Chambre ' + (i + 1) + '</span>' +
-          (c.prix ? '<span class="chambre-prix">' + formaterPrix(c.prix) + '</span>' : '') +
-          (nomsChambre.length ? nomsChambre.map(function (n) { return '<span class="badge-voyageur">' + escapeHTML(n) + '</span>'; }).join('') : '') +
+  const detailVoyageursHtml = aDesLignes
+    ? (lignes.length ? '<div class="carte-lignes-cout">' + lignes.map(function (c, i) {
+        const nomsLigne = (c.voyageurIds || []).map(nomVoyageur).filter(Boolean);
+        return '<div class="ligne-cout-carte"><span class="ligne-num">' + libelleLignes(e.type).singulier + ' ' + (i + 1) + '</span>' +
+          (c.prix ? '<span class="ligne-montant">' + formaterPrix(c.prix) + '</span>' : '') +
+          (nomsLigne.length ? nomsLigne.map(function (n) { return '<span class="badge-voyageur">' + escapeHTML(n) + '</span>'; }).join('') : '') +
           '</div>';
       }).join('') + '</div>' : '')
     : (noms.length ? '<div class="carte-voyageurs">' + noms.map(function (n) { return '<span class="badge-voyageur">' + escapeHTML(n) + '</span>'; }).join('') + '</div>' : '');
@@ -421,50 +440,53 @@ function voyageursSelectionnes() {
     .map(function (c) { return c.dataset.voyageur; });
 }
 
-// ---- Chambres (formulaire hébergement) ----
+// ---- Lignes de coût (formulaire hébergement / activité / repas) ----
 
-function ajouterChambre() {
-  chambresForm.push({ clientId: genId(), prix: '', payeur: '', voyageurs: [] });
-  renderChambresForm();
+function ajouterLigne() {
+  lignesForm.push({ clientId: genId(), prix: '', payeur: '', voyageurs: [] });
+  renderLignesForm();
 }
 
-function supprimerChambreForm(clientId) {
-  chambresForm = chambresForm.filter(function (c) { return c.clientId !== clientId; });
-  renderChambresForm();
+function supprimerLigneForm(clientId) {
+  lignesForm = lignesForm.filter(function (c) { return c.clientId !== clientId; });
+  renderLignesForm();
 }
 
-function majPrixChambre(clientId, valeur) {
-  const c = chambresForm.find(function (x) { return x.clientId === clientId; });
+function majPrixLigne(clientId, valeur) {
+  const c = lignesForm.find(function (x) { return x.clientId === clientId; });
   if (c) c.prix = valeur;
 }
 
-function toggleVoyageurChambre(clientId, voyageurId) {
-  const c = chambresForm.find(function (x) { return x.clientId === clientId; });
+function toggleVoyageurLigne(clientId, voyageurId) {
+  const c = lignesForm.find(function (x) { return x.clientId === clientId; });
   if (!c) return;
   const idx = c.voyageurs.indexOf(voyageurId);
   if (idx === -1) c.voyageurs.push(voyageurId); else c.voyageurs.splice(idx, 1);
-  renderChambresForm();
+  renderLignesForm();
 }
 
-function togglePayeurChambre(clientId, voyageurId) {
-  const c = chambresForm.find(function (x) { return x.clientId === clientId; });
+function togglePayeurLigne(clientId, voyageurId) {
+  const c = lignesForm.find(function (x) { return x.clientId === clientId; });
   if (!c) return;
   c.payeur = (c.payeur === voyageurId) ? '' : voyageurId;
-  renderChambresForm();
+  renderLignesForm();
 }
 
-function renderChambresForm() {
-  const cible = document.getElementById('chambres-liste');
+function renderLignesForm() {
+  const cible = document.getElementById('lignes-liste');
   if (!cible) return;
-  if (chambresForm.length === 0) {
-    cible.innerHTML = '<p class="hint">Aucune chambre ajoutée pour le moment.</p>';
+  const type = document.getElementById('etape-type').value;
+  const singulier = libelleLignes(type).singulier;
+
+  if (lignesForm.length === 0) {
+    cible.innerHTML = '<p class="hint">Aucune ligne ajoutée pour le moment.</p>';
     return;
   }
-  cible.innerHTML = chambresForm.map(function (c, i) {
+  cible.innerHTML = lignesForm.map(function (c, i) {
     const chipsHtml = voyageurs.length
       ? voyageurs.map(function (v) {
           const actif = c.voyageurs.indexOf(v.id) !== -1;
-          return '<button type="button" class="chip voyageur' + (actif ? ' active' : '') + '" onclick="toggleVoyageurChambre(\'' + c.clientId + '\',\'' + v.id + '\')">' +
+          return '<button type="button" class="chip voyageur' + (actif ? ' active' : '') + '" onclick="toggleVoyageurLigne(\'' + c.clientId + '\',\'' + v.id + '\')">' +
             '<span class="material-symbols-rounded">person</span><span>' + escapeHTML(v.nom) + '</span></button>';
         }).join('')
       : '<p class="hint">Ajoute des voyageurs dans l\'onglet « Voyageurs » pour pouvoir les cocher ici.</p>';
@@ -472,16 +494,16 @@ function renderChambresForm() {
     const chipsPayeurHtml = voyageurs.length
       ? voyageurs.map(function (v) {
           const actif = c.payeur === v.id;
-          return '<button type="button" class="chip voyageur' + (actif ? ' active' : '') + '" onclick="togglePayeurChambre(\'' + c.clientId + '\',\'' + v.id + '\')">' +
+          return '<button type="button" class="chip voyageur' + (actif ? ' active' : '') + '" onclick="togglePayeurLigne(\'' + c.clientId + '\',\'' + v.id + '\')">' +
             '<span class="material-symbols-rounded">person</span><span>' + escapeHTML(v.nom) + '</span></button>';
         }).join('')
       : '<p class="hint">Ajoute des voyageurs dans l\'onglet « Voyageurs » pour pouvoir les cocher ici.</p>';
 
-    return '<div class="chambre-bloc">' +
-      '  <div class="chambre-entete"><span>Chambre ' + (i + 1) + '</span>' +
-      '    <button type="button" class="del-chambre" onclick="supprimerChambreForm(\'' + c.clientId + '\')"><span class="material-symbols-rounded">delete</span></button>' +
+    return '<div class="ligne-bloc">' +
+      '  <div class="ligne-entete"><span>' + singulier + ' ' + (i + 1) + '</span>' +
+      '    <button type="button" class="del-ligne" onclick="supprimerLigneForm(\'' + c.clientId + '\')"><span class="material-symbols-rounded">delete</span></button>' +
       '  </div>' +
-      '  <label>Prix (€)<input type="number" step="0.01" min="0" value="' + (c.prix || '') + '" oninput="majPrixChambre(\'' + c.clientId + '\', this.value)" placeholder="Ex : 89.00"></label>' +
+      '  <label>Prix (€)<input type="number" step="0.01" min="0" value="' + (c.prix || '') + '" oninput="majPrixLigne(\'' + c.clientId + '\', this.value)" placeholder="Ex : 89.00"></label>' +
       '  <label>Payé par</label>' +
       '  <div class="chips">' + chipsPayeurHtml + '</div>' +
       '  <label>Voyageurs</label>' +
@@ -490,7 +512,7 @@ function renderChambresForm() {
   }).join('');
 }
 
-document.getElementById('btn-ajouter-chambre').addEventListener('click', ajouterChambre);
+document.getElementById('btn-ajouter-ligne').addEventListener('click', ajouterLigne);
 
 // ---- Onglet Voyageurs ----
 
@@ -521,7 +543,7 @@ document.getElementById('form-voyageur').addEventListener('submit', async functi
 });
 
 async function supprimerVoyageur(id) {
-  if (!confirm('Supprimer ce voyageur ? Il sera retiré des étapes et chambres qui le mentionnaient.')) return;
+  if (!confirm('Supprimer ce voyageur ? Il sera retiré des étapes et lignes de coût qui le mentionnaient.')) return;
   const { error } = await sb.from('voyage_voyageurs').delete().eq('id', id);
   if (error) {
     alert('Erreur : ' + error.message);
@@ -651,17 +673,18 @@ function modifierEtape(id) {
   document.getElementById('etape-payeur').value = e.payeurId || '';
   afficherChipsPayeur(e.payeurId || '');
 
-  if (e.type === 'Hébergement') {
-    chambresForm = (e.chambres || []).map(function (c) {
+  if (TYPES_AVEC_LIGNES.includes(e.type)) {
+    lignesForm = (e.lignes || []).map(function (c) {
       return { clientId: genId(), prix: c.prix || '', payeur: c.payeurId || '', voyageurs: c.voyageurIds || [] };
     });
-    renderChambresForm();
-    document.getElementById('bloc-chambres').classList.remove('hidden');
+    renderLignesForm();
+    mettreAJourLabelsLignes(e.type);
+    document.getElementById('bloc-lignes').classList.remove('hidden');
     document.getElementById('bloc-prix-voyageurs').classList.add('hidden');
   } else {
-    chambresForm = [];
+    lignesForm = [];
     afficherChipsVoyageurs(e.voyageurIds || []);
-    document.getElementById('bloc-chambres').classList.add('hidden');
+    document.getElementById('bloc-lignes').classList.add('hidden');
     document.getElementById('bloc-prix-voyageurs').classList.remove('hidden');
   }
 
@@ -713,9 +736,9 @@ function reinitialiserFormulaire() {
   afficherChipsVoyageurs([]);
   document.getElementById('etape-payeur').value = '';
   afficherChipsPayeur('');
-  chambresForm = [];
-  renderChambresForm();
-  document.getElementById('bloc-chambres').classList.add('hidden');
+  lignesForm = [];
+  renderLignesForm();
+  document.getElementById('bloc-lignes').classList.add('hidden');
   document.getElementById('bloc-prix-voyageurs').classList.remove('hidden');
   document.getElementById('btn-save').innerText = "Ajouter l'étape";
   document.getElementById('btn-cancel').classList.add('hidden');
@@ -744,8 +767,8 @@ document.getElementById('form-etape').addEventListener('submit', async function 
     heure_fin: vide(document.getElementById('etape-heureFin').value),
     details: vide(document.getElementById('etape-details').value),
     lien: vide(document.getElementById('etape-lien').value),
-    prix: type === 'Hébergement' ? null : vide(document.getElementById('etape-prix').value),
-    payeur_id: type === 'Hébergement' ? null : vide(document.getElementById('etape-payeur').value)
+    prix: TYPES_AVEC_LIGNES.includes(type) ? null : vide(document.getElementById('etape-prix').value),
+    payeur_id: TYPES_AVEC_LIGNES.includes(type) ? null : vide(document.getElementById('etape-payeur').value)
   };
 
   const btn = document.getElementById('btn-save');
@@ -763,11 +786,11 @@ document.getElementById('form-etape').addEventListener('submit', async function 
       id = data.id;
     }
 
-    // Voyageurs concernés (hors hébergement) : on repart d'une liste propre à chaque sauvegarde
+    // Voyageurs concernés (types sans lignes) : on repart d'une liste propre à chaque sauvegarde
     const { error: errDelVoy } = await sb.from('voyage_etape_voyageurs').delete().eq('etape_id', id);
     if (errDelVoy) throw errDelVoy;
 
-    if (type !== 'Hébergement') {
+    if (!TYPES_AVEC_LIGNES.includes(type)) {
       const ids = voyageursSelectionnes();
       if (ids.length) {
         const { error: errInsVoy } = await sb.from('voyage_etape_voyageurs').insert(
@@ -777,25 +800,25 @@ document.getElementById('form-etape').addEventListener('submit', async function 
       }
     }
 
-    // Chambres (hébergement uniquement) : on supprime les anciennes puis on réinsère
-    const { error: errDelChambres } = await sb.from('voyage_chambres').delete().eq('etape_id', id);
-    if (errDelChambres) throw errDelChambres;
+    // Lignes de coût (hébergement/activité/repas) : on supprime les anciennes puis on réinsère
+    const { error: errDelLignes } = await sb.from('voyage_lignes_cout').delete().eq('etape_id', id);
+    if (errDelLignes) throw errDelLignes;
 
-    if (type === 'Hébergement') {
-      const chambresValides = chambresForm.filter(function (c) { return c.prix || c.voyageurs.length; });
-      for (const c of chambresValides) {
-        const { data: chambreData, error: errChambre } = await sb
-          .from('voyage_chambres')
+    if (TYPES_AVEC_LIGNES.includes(type)) {
+      const lignesValides = lignesForm.filter(function (c) { return c.prix || c.voyageurs.length; });
+      for (const c of lignesValides) {
+        const { data: ligneData, error: errLigne } = await sb
+          .from('voyage_lignes_cout')
           .insert({ etape_id: id, prix: vide(c.prix), payeur_id: vide(c.payeur) })
           .select('id')
           .single();
-        if (errChambre) throw errChambre;
+        if (errLigne) throw errLigne;
 
         if (c.voyageurs.length) {
-          const { error: errChambreVoy } = await sb.from('voyage_chambre_voyageurs').insert(
-            c.voyageurs.map(function (voyageurId) { return { chambre_id: chambreData.id, voyageur_id: voyageurId }; })
+          const { error: errLigneVoy } = await sb.from('voyage_ligne_voyageurs').insert(
+            c.voyageurs.map(function (voyageurId) { return { ligne_id: ligneData.id, voyageur_id: voyageurId }; })
           );
-          if (errChambreVoy) throw errChambreVoy;
+          if (errLigneVoy) throw errLigneVoy;
         }
       }
     }

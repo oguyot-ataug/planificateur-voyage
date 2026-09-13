@@ -508,27 +508,27 @@
   }
 
   /* Chambres (formulaire hébergement) */
-  .chambre-bloc {
+  .ligne-bloc {
     background: #fffdf8;
     border: 1.5px solid var(--border);
     border-radius: 12px;
     padding: 14px;
     margin-bottom: 12px;
   }
-  .chambre-entete {
+  .ligne-entete {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
   }
-  .chambre-entete span {
+  .ligne-entete span {
     font-size: 13px;
     font-weight: 800;
     color: var(--hebergement);
     text-transform: uppercase;
     letter-spacing: 0.4px;
   }
-  .del-chambre {
+  .del-ligne {
     display: flex;
     align-items: center;
     border: none;
@@ -537,16 +537,16 @@
     cursor: pointer;
     padding: 2px;
   }
-  .del-chambre .material-symbols-rounded { font-size: 18px; }
+  .del-ligne .material-symbols-rounded { font-size: 18px; }
 
-  /* Détail des chambres (carte) */
-  .carte-chambres {
+  /* Détail des lignes de coût (carte) */
+  .carte-lignes-cout {
     margin-top: 8px;
     display: flex;
     flex-direction: column;
     gap: 6px;
   }
-  .ligne-chambre-carte {
+  .ligne-cout-carte {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -556,8 +556,8 @@
     border-radius: 8px;
     padding: 6px 10px;
   }
-  .chambre-num { font-weight: 800; color: var(--hebergement); }
-  .chambre-prix { font-weight: 700; color: #8a6d00; }
+  .ligne-num { font-weight: 800; color: var(--hebergement); }
+  .ligne-montant { font-weight: 700; color: #8a6d00; }
 
   /* Barre d'authentification */
   .auth-bar {
