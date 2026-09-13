@@ -162,6 +162,8 @@ let etapes = [];
 let voyageurs = [];
 let lignesForm = [];
 let photoForm = null;
+let videoPathForm = null;
+let videoEnCoursUpload = false;
 let peutEditer = false;
 let estAdmin = false;
 let monVoyageurNom = null;
@@ -234,6 +236,75 @@ document.getElementById('btn-supprimer-photo').addEventListener('click', functio
   photoForm = null;
   afficherApercuPhoto(null);
 });
+
+// ---- Vidéo d'illustration (Supabase Storage, bucket privé) ----
+
+document.getElementById('etape-video-input').addEventListener('change', async function (evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+
+  if (file.size > 60 * 1024 * 1024) {
+    alert('Vidéo trop lourde (60 Mo maximum).');
+    evt.target.value = '';
+    return;
+  }
+
+  const wrap = document.getElementById('video-apercu-wrap');
+  const apercu = document.getElementById('video-apercu');
+  const hint = document.getElementById('video-upload-hint');
+
+  apercu.src = URL.createObjectURL(file);
+  wrap.classList.remove('hidden');
+  hint.classList.remove('hidden');
+  videoEnCoursUpload = true;
+
+  if (videoPathForm) {
+    await sb.storage.from('voyage-media').remove([videoPathForm]);
+    videoPathForm = null;
+  }
+
+  const extension = (file.name.split('.').pop() || 'mp4').toLowerCase();
+  const chemin = genId() + '-' + Date.now() + '.' + extension;
+  const { error } = await sb.storage.from('voyage-media').upload(chemin, file, { contentType: file.type });
+
+  videoEnCoursUpload = false;
+  hint.classList.add('hidden');
+
+  if (error) {
+    alert('Erreur d\'envoi de la vidéo : ' + error.message);
+    wrap.classList.add('hidden');
+    return;
+  }
+  videoPathForm = chemin;
+  evt.target.value = '';
+});
+
+document.getElementById('btn-supprimer-video').addEventListener('click', async function () {
+  if (videoPathForm) {
+    await sb.storage.from('voyage-media').remove([videoPathForm]);
+  }
+  videoPathForm = null;
+  document.getElementById('video-apercu-wrap').classList.add('hidden');
+  document.getElementById('video-apercu').src = '';
+});
+
+async function resoudreVideosAffichees() {
+  const elements = Array.from(document.querySelectorAll('video.carte-video[data-video-path]:not([data-resolu])'));
+  if (elements.length === 0) return;
+  const chemins = elements.map(function (el) { return el.dataset.videoPath; });
+  const { data, error } = await sb.storage.from('voyage-media').createSignedUrls(chemins, 3600);
+  if (error) {
+    console.error(error);
+    return;
+  }
+  elements.forEach(function (el, i) {
+    const item = data[i];
+    if (item && item.signedUrl) {
+      el.src = item.signedUrl;
+      el.dataset.resolu = '1';
+    }
+  });
+}
 
 document.querySelectorAll('.tab-btn').forEach(function (btn) {
   btn.addEventListener('click', function () {
@@ -319,6 +390,7 @@ function mapEtapeFromDb(row) {
     prix: row.prix,
     payeurId: row.payeur_id,
     photo: row.photo,
+    videoPath: row.video_path,
     voyageurIds: (row.voyage_etape_voyageurs || []).map(function (v) { return v.voyageur_id; }),
     lignes: (row.voyage_lignes_cout || []).map(function (c) {
       return {
@@ -335,7 +407,7 @@ async function chargerEtapes() {
   const { data, error } = await sb
     .from('voyage_etapes')
     .select(`
-      id, type, sous_type, titre, lieu, lieu_arrivee, date_debut, heure_debut, date_fin, heure_fin, details, lien, prix, payeur_id, photo,
+      id, type, sous_type, titre, lieu, lieu_arrivee, date_debut, heure_debut, date_fin, heure_fin, details, lien, prix, payeur_id, photo, video_path,
       voyage_etape_voyageurs ( voyageur_id ),
       voyage_lignes_cout ( id, prix, payeur_id, voyage_ligne_voyageurs ( voyageur_id ) )
     `)
@@ -351,6 +423,7 @@ async function chargerEtapes() {
   etapes = data.map(mapEtapeFromDb);
   afficherListeSaisie();
   afficherVoyage();
+  resoudreVideosAffichees();
 }
 
 async function chargerVoyageurs() {
@@ -580,7 +653,7 @@ function carteHTML(e, avecActions, contexte) {
 
   return '' +
     '<div class="carte ' + e.type + '">' +
-    (e.photo ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : sceneHTMLPour(e)) +
+    (e.videoPath ? '<video class="carte-video" data-video-path="' + escapeHTML(e.videoPath) + '" muted loop playsinline autoplay></video>' : (e.photo ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : sceneHTMLPour(e))) +
     '  <div class="carte-content">' +
     '  <div class="carte-icone"><span class="material-symbols-rounded">' + iconePour(e) + '</span></div>' +
     '  <div class="carte-body">' +
@@ -914,6 +987,20 @@ function modifierEtape(id) {
   photoForm = e.photo || null;
   afficherApercuPhoto(photoForm);
 
+  videoPathForm = e.videoPath || null;
+  const videoWrap = document.getElementById('video-apercu-wrap');
+  const videoApercu = document.getElementById('video-apercu');
+  if (videoPathForm) {
+    videoWrap.classList.remove('hidden');
+    videoApercu.src = '';
+    sb.storage.from('voyage-media').createSignedUrl(videoPathForm, 3600).then(function (res) {
+      if (res.data) videoApercu.src = res.data.signedUrl;
+    });
+  } else {
+    videoWrap.classList.add('hidden');
+    videoApercu.src = '';
+  }
+
   if (TYPES_AVEC_LIGNES.includes(e.type)) {
     lignesForm = (e.lignes || []).map(function (c) {
       return { clientId: genId(), prix: c.prix || '', payeur: c.payeurId || '', voyageurs: c.voyageurIds || [] };
@@ -979,6 +1066,9 @@ function reinitialiserFormulaire() {
   afficherChipsPayeur('');
   photoForm = null;
   afficherApercuPhoto(null);
+  videoPathForm = null;
+  document.getElementById('video-apercu-wrap').classList.add('hidden');
+  document.getElementById('video-apercu').src = '';
   lignesForm = [];
   renderLignesForm();
   document.getElementById('bloc-lignes').classList.add('hidden');
@@ -993,6 +1083,11 @@ document.getElementById('form-etape').addEventListener('submit', async function 
   const type = document.getElementById('etape-type').value;
   if (!type) {
     alert('Choisis un type d\'étape.');
+    return;
+  }
+
+  if (videoEnCoursUpload) {
+    alert('Attends la fin de l\'envoi de la vidéo avant d\'enregistrer.');
     return;
   }
 
@@ -1012,7 +1107,8 @@ document.getElementById('form-etape').addEventListener('submit', async function 
     lien: vide(document.getElementById('etape-lien').value),
     prix: TYPES_AVEC_LIGNES.includes(type) ? null : vide(document.getElementById('etape-prix').value),
     payeur_id: TYPES_AVEC_LIGNES.includes(type) ? null : vide(document.getElementById('etape-payeur').value),
-    photo: photoForm
+    photo: photoForm,
+    video_path: videoPathForm
   };
 
   const btn = document.getElementById('btn-save');
