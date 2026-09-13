@@ -628,7 +628,7 @@ async function afficherCarteEnsemble() {
   }
 
   conteneur.innerHTML = '<div class="carte-ensemble-canvas"></div>';
-  const map = new google.maps.Map(conteneur.querySelector('.carte-ensemble-canvas'), { zoom: 5, center: { lat: 20, lng: 0 } });
+  const map = new google.maps.Map(conteneur.querySelector('.carte-ensemble-canvas'), { zoom: 6, center: { lat: 40.0, lng: -3.7 } });
   const geocoder = new google.maps.Geocoder();
   const cache = new Map();
   const positions = [];
@@ -646,12 +646,31 @@ async function afficherCarteEnsemble() {
   }
 
   if (positions.length > 1) {
-    new google.maps.Polyline({
-      path: positions,
+    const waypoints = positions.slice(1, -1).map(function (p) { return { location: p, stopover: true }; });
+    const directionsService = new google.maps.DirectionsService();
+    const directionsRenderer = new google.maps.DirectionsRenderer({
       map: map,
-      strokeColor: '#C60B1E',
-      strokeOpacity: 0.85,
-      strokeWeight: 3
+      suppressMarkers: true,
+      polylineOptions: { strokeColor: '#C60B1E', strokeOpacity: 0.85, strokeWeight: 3 }
+    });
+    directionsService.route({
+      origin: positions[0],
+      destination: positions[positions.length - 1],
+      waypoints: waypoints,
+      travelMode: google.maps.TravelMode.DRIVING
+    }, function (resultat, statut) {
+      if (statut === 'OK') {
+        directionsRenderer.setDirections(resultat);
+      } else {
+        console.error('Directions API status (carte d\'ensemble):', statut);
+        new google.maps.Polyline({
+          path: positions,
+          map: map,
+          strokeColor: '#C60B1E',
+          strokeOpacity: 0.85,
+          strokeWeight: 3
+        });
+      }
     });
   }
 
