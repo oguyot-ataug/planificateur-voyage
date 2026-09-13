@@ -289,16 +289,39 @@
     background: linear-gradient(to bottom, #a9d6ff 0%, #e8f5ff 100%);
   }
 
-  /* Voiture (SVG de profil, roues qui tournent) */
+  /* Voiture (SVG de profil, décor route) */
+  .scene-route-fond {
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%; height: 60%;
+  }
   .scene-vehicule-wrap {
     position: absolute;
     bottom: 8px;
     width: 100px;
     animation: scene-avancer 8s linear infinite;
   }
-  .scene-vehicule { width: 100%; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.25)); }
+  .scene-vehicule { width: 100%; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.25)); transform: scaleX(-1); }
 
-  /* Avion (SVG de profil, décollage → croisière → atterrissage, nuages qui défilent) */
+  /* Avion (SVG de profil, 3 phases : piste → nuages seuls → piste) */
+  .scene-aeroport {
+    position: absolute;
+    inset: 0;
+    animation: aeroport-visibilite 14s ease-in-out infinite;
+  }
+  .scene-aeroport-fond {
+    position: absolute;
+    left: 0; bottom: 14px;
+    width: 100%; height: 90px;
+  }
+  @keyframes aeroport-visibilite {
+    0%   { opacity: 1; }
+    18%  { opacity: 1; }
+    26%  { opacity: 0; }
+    72%  { opacity: 0; }
+    80%  { opacity: 1; }
+    100% { opacity: 1; }
+  }
   .scene-piste {
     position: absolute;
     bottom: 0;
@@ -317,19 +340,20 @@
   .carte-scene.scene-ciel .scene-avion-wrap {
     position: absolute;
     width: 110px;
-    animation: vol-avion 12s ease-in-out infinite;
+    animation: vol-avion 14s ease-in-out infinite;
   }
   .scene-avion { width: 100%; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.2)); }
   @keyframes vol-avion {
-    0%   { left: -10%; bottom: 10px;  transform: rotate(0deg); }
-    16%  { left: 22%;  bottom: 10px;  transform: rotate(0deg); }
-    24%  { left: 34%;  bottom: 10px;  transform: rotate(-10deg); }
-    38%  { left: 50%;  bottom: 95px;  transform: rotate(-16deg); }
-    50%  { left: 60%;  bottom: 122px; transform: rotate(0deg); }
-    62%  { left: 70%;  bottom: 122px; transform: rotate(0deg); }
-    76%  { left: 80%;  bottom: 95px;  transform: rotate(12deg); }
-    90%  { left: 88%;  bottom: 10px;  transform: rotate(4deg); }
-    100% { left: 104%; bottom: 10px;  transform: rotate(0deg); }
+    0%   { left: -6%;  bottom: 10px;  transform: rotate(0deg); }
+    16%  { left: 40%;  bottom: 10px;  transform: rotate(0deg); }
+    24%  { left: 50%;  bottom: 45px;  transform: rotate(-14deg); }
+    32%  { left: 50%;  bottom: 95px;  transform: rotate(-6deg); }
+    40%  { left: 50%;  bottom: 132px; transform: rotate(0deg); }
+    60%  { left: 50%;  bottom: 132px; transform: rotate(0deg); }
+    68%  { left: 50%;  bottom: 95px;  transform: rotate(8deg); }
+    76%  { left: 50%;  bottom: 45px;  transform: rotate(14deg); }
+    84%  { left: 50%;  bottom: 10px;  transform: rotate(0deg); }
+    100% { left: 106%; bottom: 10px;  transform: rotate(0deg); }
   }
   .scene-nuage {
     position: absolute;
@@ -346,7 +370,7 @@
     to { left: -45%; }
   }
 
-  /* Marche : groupe de piétons devant un décor de ruelle andalouse */
+  /* Marche : groupe de piétons (bras/jambes alternés) devant un décor de ruelle andalouse */
   .carte-scene.scene-ville-marche {
     background: linear-gradient(to bottom, #cfe8ff 0%, #cfe8ff 45%, #e0d3ae 45%, #e0d3ae 100%);
   }
@@ -357,7 +381,7 @@
   }
   .scene-groupe-marche {
     position: absolute;
-    bottom: 16px;
+    bottom: 0;
     display: flex;
     align-items: flex-end;
     gap: 4px;
@@ -367,12 +391,23 @@
     width: 22px;
     height: 42px;
     display: inline-block;
-    animation: scene-rebond 0.5s ease-in-out infinite;
   }
   .scene-marcheur { width: 100%; height: 100%; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2)); }
-  @keyframes scene-rebond {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
+  .scene-jambe, .scene-bras {
+    transform-box: fill-box;
+    animation-duration: 0.6s;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+  }
+  .scene-jambe.j1, .scene-bras.b2 { animation-name: scene-balancer-avant; }
+  .scene-jambe.j2, .scene-bras.b1 { animation-name: scene-balancer-arriere; }
+  @keyframes scene-balancer-avant {
+    0%, 100% { transform: rotate(20deg); }
+    50% { transform: rotate(-20deg); }
+  }
+  @keyframes scene-balancer-arriere {
+    0%, 100% { transform: rotate(-20deg); }
+    50% { transform: rotate(20deg); }
   }
 
   .carte-content {

@@ -52,7 +52,18 @@ function sceneHTMLPour(e) {
 }
 
 function sceneVoitureHTML() {
+  const decor =
+    '<path d="M0 60 L45 20 L85 60 Z" fill="#93a9c0" opacity="0.55"/>' +
+    '<path d="M60 60 L110 14 L150 60 Z" fill="#7d93ab" opacity="0.55"/>' +
+    '<path d="M130 60 L175 24 L215 60 Z" fill="#93a9c0" opacity="0.55"/>' +
+    '<path d="M195 60 L245 16 L285 60 Z" fill="#7d93ab" opacity="0.55"/>' +
+    '<g><rect x="24" y="66" width="5" height="16" fill="#6b4a2f"/><circle cx="26" cy="59" r="12" fill="#4c7a3d"/></g>' +
+    '<g><rect x="254" y="66" width="5" height="16" fill="#6b4a2f"/><circle cx="256" cy="59" r="12" fill="#4c7a3d"/></g>' +
+    '<g><rect x="288" y="70" width="4" height="12" fill="#6b4a2f"/><circle cx="290" cy="64" r="9" fill="#5a8a49"/></g>' +
+    '<g><rect x="6" y="70" width="4" height="12" fill="#6b4a2f"/><circle cx="8" cy="64" r="9" fill="#5a8a49"/></g>';
+
   return '<div class="carte-scene scene-route">' +
+    '<svg class="scene-route-fond" viewBox="0 0 320 96" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' + decor + '</svg>' +
     '<div class="scene-vehicule-wrap">' +
     '<svg class="scene-vehicule" viewBox="0 0 120 60" xmlns="http://www.w3.org/2000/svg">' +
     '<path d="M8 44 Q6 44 6 40 Q6 33 14 31 L26 31 L36 16 Q40 11 48 11 L78 11 Q86 11 91 18 L99 31 L106 31 Q114 31 114 40 Q114 44 110 44 Z" fill="#ffffff"/>' +
@@ -67,12 +78,26 @@ function sceneVoitureHTML() {
 
 function sceneAvionHTML() {
   const nuage = '<ellipse cx="30" cy="25" rx="18" ry="12" fill="#ffffff"/><ellipse cx="52" cy="19" rx="24" ry="16" fill="#ffffff"/><ellipse cx="74" cy="26" rx="16" ry="11" fill="#ffffff"/>';
+  const aeroport =
+    '<rect x="20" y="40" width="110" height="40" fill="#e2e8f0"/>' +
+    '<rect x="20" y="34" width="110" height="8" fill="#94a3b8"/>' +
+    '<rect x="35" y="50" width="14" height="18" fill="#7dd3fc"/>' +
+    '<rect x="58" y="50" width="14" height="18" fill="#7dd3fc"/>' +
+    '<rect x="81" y="50" width="14" height="18" fill="#7dd3fc"/>' +
+    '<rect x="104" y="50" width="14" height="18" fill="#7dd3fc"/>' +
+    '<rect x="152" y="20" width="10" height="60" fill="#94a3b8"/>' +
+    '<rect x="141" y="5" width="32" height="18" rx="4" fill="#64748b"/>' +
+    '<rect x="145" y="9" width="24" height="9" fill="#bfe3ff"/>';
+
   return '<div class="carte-scene scene-ciel">' +
     '<svg class="scene-nuage n1" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
     '<svg class="scene-nuage n2" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
     '<svg class="scene-nuage n3" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
     '<svg class="scene-nuage n4" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
+    '<div class="scene-aeroport">' +
+    '<svg class="scene-aeroport-fond" viewBox="0 0 320 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' + aeroport + '</svg>' +
     '<div class="scene-piste"></div>' +
+    '</div>' +
     '<div class="scene-avion-wrap">' +
     '<svg class="scene-avion" viewBox="0 0 140 50" xmlns="http://www.w3.org/2000/svg">' +
     '<path d="M45 32 L18 45 L52 34 Z" fill="#ffffff" opacity="0.95"/>' +
@@ -91,9 +116,11 @@ function sceneAvionHTML() {
 
 function sceneMarcheHTML() {
   const marcheur = '<circle cx="12" cy="6" r="4" fill="#3a3a3a"/>' +
-    '<path d="M12 10 L10 24 M12 12 L7 18 M12 12 L17 16 ' +
-    'M10 24 L13 32 L16 40 M10 24 L7 31 L4 40" ' +
-    'stroke="#3a3a3a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
+    '<path d="M12 10 L10 24" stroke="#3a3a3a" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
+    '<g class="scene-bras b1" style="transform-origin:12px 12px;"><path d="M12 12 L17 17" stroke="#3a3a3a" stroke-width="2.4" stroke-linecap="round"/></g>' +
+    '<g class="scene-bras b2" style="transform-origin:12px 12px;"><path d="M12 12 L7 17" stroke="#3a3a3a" stroke-width="2.4" stroke-linecap="round"/></g>' +
+    '<g class="scene-jambe j1" style="transform-origin:10px 24px;"><path d="M10 24 L10 40" stroke="#3a3a3a" stroke-width="2.6" stroke-linecap="round"/></g>' +
+    '<g class="scene-jambe j2" style="transform-origin:10px 24px;"><path d="M10 24 L10 40" stroke="#3a3a3a" stroke-width="2.6" stroke-linecap="round"/></g>';
   const ville =
     '<rect x="0" y="34" width="70" height="56" fill="#fbf3e3"/><rect x="0" y="28" width="70" height="8" fill="#c1602e"/>' +
     '<path d="M14 90 L14 58 Q14 48 24 48 Q34 48 34 58 L34 90 Z" fill="#f3e6cc"/>' +
