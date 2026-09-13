@@ -33,6 +33,7 @@ function libelleLignes(type) {
 let etapes = [];
 let voyageurs = [];
 let lignesForm = [];
+let photoForm = null;
 let peutEditer = false;
 let estAdmin = false;
 let monVoyageurNom = null;
@@ -49,6 +50,62 @@ function vide(v) {
 function heureCourte(t) {
   return t ? t.slice(0, 5) : '';
 }
+
+// ---- Photo d'illustration (redimensionnement côté client avant stockage) ----
+
+function redimensionnerImage(file, maxDim, qualite) {
+  return new Promise(function (resolve, reject) {
+    const lecteur = new FileReader();
+    lecteur.onload = function (evt) {
+      const img = new Image();
+      img.onload = function () {
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', qualite));
+      };
+      img.onerror = reject;
+      img.src = evt.target.result;
+    };
+    lecteur.onerror = reject;
+    lecteur.readAsDataURL(file);
+  });
+}
+
+function afficherApercuPhoto(dataUrl) {
+  const wrap = document.getElementById('photo-apercu-wrap');
+  const img = document.getElementById('photo-apercu');
+  if (dataUrl) {
+    img.src = dataUrl;
+    wrap.classList.remove('hidden');
+  } else {
+    img.src = '';
+    wrap.classList.add('hidden');
+  }
+}
+
+document.getElementById('etape-photo-input').addEventListener('change', async function (evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  try {
+    photoForm = await redimensionnerImage(file, 1000, 0.7);
+    afficherApercuPhoto(photoForm);
+  } catch (err) {
+    alert('Impossible de lire cette image.');
+  }
+  evt.target.value = '';
+});
+
+document.getElementById('btn-supprimer-photo').addEventListener('click', function () {
+  photoForm = null;
+  afficherApercuPhoto(null);
+});
 
 document.querySelectorAll('.tab-btn').forEach(function (btn) {
   btn.addEventListener('click', function () {
@@ -133,6 +190,7 @@ function mapEtapeFromDb(row) {
     lien: row.lien,
     prix: row.prix,
     payeurId: row.payeur_id,
+    photo: row.photo,
     voyageurIds: (row.voyage_etape_voyageurs || []).map(function (v) { return v.voyageur_id; }),
     lignes: (row.voyage_lignes_cout || []).map(function (c) {
       return {
@@ -149,7 +207,7 @@ async function chargerEtapes() {
   const { data, error } = await sb
     .from('voyage_etapes')
     .select(`
-      id, type, sous_type, titre, lieu, lieu_arrivee, date_debut, heure_debut, date_fin, heure_fin, details, lien, prix, payeur_id,
+      id, type, sous_type, titre, lieu, lieu_arrivee, date_debut, heure_debut, date_fin, heure_fin, details, lien, prix, payeur_id, photo,
       voyage_etape_voyageurs ( voyageur_id ),
       voyage_lignes_cout ( id, prix, payeur_id, voyage_ligne_voyageurs ( voyageur_id ) )
     `)
@@ -344,6 +402,8 @@ function carteHTML(e, avecActions, contexte) {
 
   return '' +
     '<div class="carte ' + e.type + '">' +
+    (e.photo ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : '') +
+    '  <div class="carte-content">' +
     '  <div class="carte-icone"><span class="material-symbols-rounded">' + iconePour(e) + '</span></div>' +
     '  <div class="carte-body">' +
     '    <div class="carte-top">' +
@@ -366,6 +426,7 @@ function carteHTML(e, avecActions, contexte) {
       '      <button class="del" onclick="supprimerEtape(\'' + e.id + '\')">Supprimer</button>' : '') +
     '    </div>' +
     (aUneCarte ? '    <div id="carte-map-' + contexte + '-' + e.id + '" class="carte-map hidden"></div>' : '') +
+    '  </div>' +
     '  </div>' +
     '</div>';
 }
@@ -672,6 +733,8 @@ function modifierEtape(id) {
   document.getElementById('etape-prix').value = e.prix || '';
   document.getElementById('etape-payeur').value = e.payeurId || '';
   afficherChipsPayeur(e.payeurId || '');
+  photoForm = e.photo || null;
+  afficherApercuPhoto(photoForm);
 
   if (TYPES_AVEC_LIGNES.includes(e.type)) {
     lignesForm = (e.lignes || []).map(function (c) {
@@ -736,6 +799,8 @@ function reinitialiserFormulaire() {
   afficherChipsVoyageurs([]);
   document.getElementById('etape-payeur').value = '';
   afficherChipsPayeur('');
+  photoForm = null;
+  afficherApercuPhoto(null);
   lignesForm = [];
   renderLignesForm();
   document.getElementById('bloc-lignes').classList.add('hidden');
@@ -768,7 +833,8 @@ document.getElementById('form-etape').addEventListener('submit', async function 
     details: vide(document.getElementById('etape-details').value),
     lien: vide(document.getElementById('etape-lien').value),
     prix: TYPES_AVEC_LIGNES.includes(type) ? null : vide(document.getElementById('etape-prix').value),
-    payeur_id: TYPES_AVEC_LIGNES.includes(type) ? null : vide(document.getElementById('etape-payeur').value)
+    payeur_id: TYPES_AVEC_LIGNES.includes(type) ? null : vide(document.getElementById('etape-payeur').value),
+    photo: photoForm
   };
 
   const btn = document.getElementById('btn-save');
