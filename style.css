@@ -500,6 +500,11 @@
     text-decoration: none;
   }
   .lien-reservation .material-symbols-rounded { font-size: 16px; }
+  .lien-reservation.lien-info {
+    border-color: #94a3b8;
+    background: #f1f5f9;
+    color: #475569;
+  }
 
   .carte-map {
     margin-top: 12px;

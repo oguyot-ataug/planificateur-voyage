@@ -387,6 +387,7 @@ function mapEtapeFromDb(row) {
     heureFin: heureCourte(row.heure_fin),
     details: row.details,
     lien: row.lien,
+    lienInfo: row.lien_info,
     prix: row.prix,
     payeurId: row.payeur_id,
     photo: row.photo,
@@ -407,7 +408,7 @@ async function chargerEtapes() {
   const { data, error } = await sb
     .from('voyage_etapes')
     .select(`
-      id, type, sous_type, titre, lieu, lieu_arrivee, date_debut, heure_debut, date_fin, heure_fin, details, lien, prix, payeur_id, photo, video_path,
+      id, type, sous_type, titre, lieu, lieu_arrivee, date_debut, heure_debut, date_fin, heure_fin, details, lien, lien_info, prix, payeur_id, photo, video_path,
       voyage_etape_voyageurs ( voyageur_id ),
       voyage_lignes_cout ( id, prix, payeur_id, voyage_ligne_voyageurs ( voyageur_id ) )
     `)
@@ -672,6 +673,7 @@ function carteHTML(e, avecActions, contexte) {
     '    <div class="carte-actions">' +
     (aUneCarte ? '      <button onclick="toggleCarte(\'' + e.id + '\',\'' + contexte + '\')"><span class="material-symbols-rounded">map</span> Voir la carte</button>' : '') +
     (e.lien ? '      <a class="lien-reservation" href="' + escapeHTML(e.lien) + '" target="_blank" rel="noopener"><span class="material-symbols-rounded">confirmation_number</span> Réservation</a>' : '') +
+    (e.lienInfo ? '      <a class="lien-reservation lien-info" href="' + escapeHTML(e.lienInfo) + '" target="_blank" rel="noopener"><span class="material-symbols-rounded">language</span> Site</a>' : '') +
     (avecActions ?
       '      <button onclick="modifierEtape(\'' + e.id + '\')">Modifier</button>' +
       '      <button class="del" onclick="supprimerEtape(\'' + e.id + '\')">Supprimer</button>' : '') +
@@ -981,6 +983,7 @@ function modifierEtape(id) {
   document.getElementById('etape-heureFin').value = e.heureFin || '';
   document.getElementById('etape-details').value = e.details || '';
   document.getElementById('etape-lien').value = e.lien || '';
+  document.getElementById('etape-lien-info').value = e.lienInfo || '';
   document.getElementById('etape-prix').value = e.prix || '';
   document.getElementById('etape-payeur').value = e.payeurId || '';
   afficherChipsPayeur(e.payeurId || '');
@@ -1058,6 +1061,7 @@ function reinitialiserFormulaire() {
   document.getElementById('etape-type').value = '';
   document.getElementById('etape-sousType').value = '';
   document.getElementById('etape-lien').value = '';
+  document.getElementById('etape-lien-info').value = '';
   document.querySelectorAll('#chips-type .chip, #chips-soustype .chip').forEach(c => c.classList.remove('active'));
   document.getElementById('chips-soustype-wrap').classList.add('hidden');
   document.getElementById('champ-lieu-arrivee-wrap').classList.add('hidden');
@@ -1105,6 +1109,7 @@ document.getElementById('form-etape').addEventListener('submit', async function 
     heure_fin: vide(document.getElementById('etape-heureFin').value),
     details: vide(document.getElementById('etape-details').value),
     lien: vide(document.getElementById('etape-lien').value),
+    lien_info: vide(document.getElementById('etape-lien-info').value),
     prix: TYPES_AVEC_LIGNES.includes(type) ? null : vide(document.getElementById('etape-prix').value),
     payeur_id: TYPES_AVEC_LIGNES.includes(type) ? null : vide(document.getElementById('etape-payeur').value),
     photo: photoForm,
