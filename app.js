@@ -627,7 +627,7 @@ async function afficherCarteEnsemble() {
     return;
   }
 
-  conteneur.innerHTML = '<div class="carte-ensemble-canvas"></div>';
+  conteneur.innerHTML = '<div class="itineraire-info" id="carte-ensemble-distance"></div><div class="carte-ensemble-canvas"></div>';
   const map = new google.maps.Map(conteneur.querySelector('.carte-ensemble-canvas'), { zoom: 6, center: { lat: 40.0, lng: -3.7 } });
   const geocoder = new google.maps.Geocoder();
   const cache = new Map();
@@ -661,8 +661,12 @@ async function afficherCarteEnsemble() {
     }, function (resultat, statut) {
       if (statut === 'OK') {
         directionsRenderer.setDirections(resultat);
+        const totalMetres = resultat.routes[0].legs.reduce(function (somme, l) { return somme + l.distance.value; }, 0);
+        const totalKm = Math.round(totalMetres / 1000);
+        document.getElementById('carte-ensemble-distance').textContent = 'Distance totale en voiture : ' + totalKm.toLocaleString('fr-FR') + ' km';
       } else {
         console.error('Directions API status (carte d\'ensemble):', statut);
+        document.getElementById('carte-ensemble-distance').textContent = '';
         new google.maps.Polyline({
           path: positions,
           map: map,
