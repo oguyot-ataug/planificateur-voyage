@@ -387,6 +387,7 @@ function mapEtapeFromDb(row) {
     dateFin: row.date_fin,
     heureFin: heureCourte(row.heure_fin),
     details: row.details,
+    description: row.description,
     lien: row.lien,
     lienInfo: row.lien_info,
     prix: row.prix,
@@ -409,7 +410,7 @@ async function chargerEtapes() {
   const { data, error } = await sb
     .from('voyage_etapes')
     .select(`
-      id, type, sous_type, titre, lieu, lieu_arrivee, date_debut, heure_debut, date_fin, heure_fin, details, lien, lien_info, prix, payeur_id, photo, video_path,
+      id, type, sous_type, titre, lieu, lieu_arrivee, date_debut, heure_debut, date_fin, heure_fin, details, description, lien, lien_info, prix, payeur_id, photo, video_path,
       voyage_etape_voyageurs ( voyageur_id ),
       voyage_lignes_cout ( id, prix, payeur_id, voyage_ligne_voyageurs ( voyageur_id ) )
     `)
@@ -669,6 +670,7 @@ function carteHTML(e, avecActions, contexte) {
     '    <div class="carte-titre">' + escapeHTML(e.titre) + '</div>' +
     (e.lieu ? '<div class="carte-lieu"><span class="material-symbols-rounded">place</span> ' + escapeHTML(e.lieu) +
       (e.lieuArrivee ? ' → ' + escapeHTML(e.lieuArrivee) : '') + '</div>' : '') +
+    (e.description ? '<div class="carte-details carte-description">' + escapeHTML(e.description) + '</div>' : '') +
     (e.details ? '<div class="carte-details">' + escapeHTML(e.details) + '</div>' : '') +
     detailVoyageursHtml +
     '    <div class="carte-actions">' +
@@ -983,6 +985,7 @@ function modifierEtape(id) {
   document.getElementById('etape-dateFin').value = e.dateFin || '';
   document.getElementById('etape-heureFin').value = e.heureFin || '';
   document.getElementById('etape-details').value = e.details || '';
+  document.getElementById('etape-description').value = e.description || '';
   document.getElementById('etape-lien').value = e.lien || '';
   document.getElementById('etape-lien-info').value = e.lienInfo || '';
   document.getElementById('etape-prix').value = e.prix || '';
@@ -1109,6 +1112,7 @@ document.getElementById('form-etape').addEventListener('submit', async function 
     date_fin: vide(document.getElementById('etape-dateFin').value),
     heure_fin: vide(document.getElementById('etape-heureFin').value),
     details: vide(document.getElementById('etape-details').value),
+    description: vide(document.getElementById('etape-description').value),
     lien: vide(document.getElementById('etape-lien').value),
     lien_info: vide(document.getElementById('etape-lien-info').value),
     prix: TYPES_AVEC_LIGNES.includes(type) ? null : vide(document.getElementById('etape-prix').value),
@@ -1341,7 +1345,7 @@ function afficherListeInvite(lignes) {
       heureDebut: heureCourte(row.heure_debut),
       dateFin: row.date_fin,
       heureFin: heureCourte(row.heure_fin),
-      details: row.details,
+      description: row.description,
       lienInfo: row.lien_info,
       photo: row.photo,
       videoPath: row.video_path
@@ -1397,7 +1401,7 @@ function carteInviteHTML(e) {
     '    <div class="carte-titre">' + escapeHTML(e.titre) + '</div>' +
     (e.lieu ? '<div class="carte-lieu"><span class="material-symbols-rounded">place</span> ' + escapeHTML(e.lieu) +
       (e.lieuArrivee ? ' → ' + escapeHTML(e.lieuArrivee) : '') + '</div>' : '') +
-    (e.details ? '<div class="carte-details">' + escapeHTML(e.details) + '</div>' : '') +
+    (e.description ? '<div class="carte-details">' + escapeHTML(e.description) + '</div>' : '') +
     (aUneCarte || e.lienInfo ? '    <div class="carte-actions">' +
       (aUneCarte ? '<button onclick="toggleCarte(\'' + e.id + '\',\'invite\')"><span class="material-symbols-rounded">map</span> Voir la carte</button>' : '') +
       (e.lienInfo ? '<a class="lien-reservation lien-info" href="' + escapeHTML(e.lienInfo) + '" target="_blank" rel="noopener"><span class="material-symbols-rounded">language</span> Site</a>' : '') +
