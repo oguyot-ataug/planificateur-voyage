@@ -58,8 +58,8 @@ function sceneVoitureHTML() {
     '<path d="M8 44 Q6 44 6 40 Q6 33 14 31 L26 31 L36 16 Q40 11 48 11 L78 11 Q86 11 91 18 L99 31 L106 31 Q114 31 114 40 Q114 44 110 44 Z" fill="#ffffff"/>' +
     '<path d="M40 29 L47 16 L74 16 L83 29 Z" fill="#a9d6ff"/>' +
     '<line x1="58" y1="16" x2="58" y2="29" stroke="#ffffff" stroke-width="2"/>' +
-    '<g class="scene-roue" style="transform-origin:30px 44px;"><circle cx="30" cy="44" r="10" fill="#2b2b2b"/><circle cx="30" cy="44" r="4" fill="#cbd5e1"/></g>' +
-    '<g class="scene-roue" style="transform-origin:92px 44px;"><circle cx="92" cy="44" r="10" fill="#2b2b2b"/><circle cx="92" cy="44" r="4" fill="#cbd5e1"/></g>' +
+    '<circle cx="30" cy="44" r="10" fill="#2b2b2b"/><circle cx="30" cy="44" r="4" fill="#cbd5e1"/>' +
+    '<circle cx="92" cy="44" r="10" fill="#2b2b2b"/><circle cx="92" cy="44" r="4" fill="#cbd5e1"/>' +
     '</svg>' +
     '</div>' +
     '</div>';
@@ -71,18 +71,28 @@ function sceneAvionHTML() {
     '<svg class="scene-nuage n1" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
     '<svg class="scene-nuage n2" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
     '<svg class="scene-nuage n3" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
+    '<div class="scene-piste piste-gauche"></div>' +
+    '<div class="scene-piste piste-droite"></div>' +
     '<div class="scene-avion-wrap">' +
-    '<svg class="scene-avion" viewBox="0 0 140 60" xmlns="http://www.w3.org/2000/svg">' +
-    '<path d="M6 34 L100 34 L124 24 L132 26 L112 36 L124 40 Q127 42 122 43 L100 39 L70 41 L55 56 L44 56 L52 41 L16 39 Q6 37 6 34 Z" fill="#ffffff"/>' +
-    '<path d="M60 34 L44 12 L54 12 L74 33 Z" fill="#ffffff"/>' +
-    '<circle cx="108" cy="32" r="2.4" fill="#1d4ed8"/>' +
+    '<svg class="scene-avion" viewBox="0 0 140 50" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M10 30 Q10 22 20 22 L100 22 L125 28 L100 34 L20 34 Q10 34 10 30 Z" fill="#ffffff"/>' +
+    '<path d="M22 22 L15 7 L28 22 Z" fill="#ffffff"/>' +
+    '<path d="M23 31 L11 38 L27 34 Z" fill="#ffffff" opacity="0.95"/>' +
+    '<circle cx="40" cy="27" r="1.6" fill="#8fc1f5"/>' +
+    '<circle cx="50" cy="27" r="1.6" fill="#8fc1f5"/>' +
+    '<circle cx="60" cy="27" r="1.6" fill="#8fc1f5"/>' +
+    '<circle cx="70" cy="27" r="1.6" fill="#8fc1f5"/>' +
+    '<circle cx="80" cy="27" r="1.6" fill="#8fc1f5"/>' +
     '</svg>' +
     '</div>' +
     '</div>';
 }
 
 function sceneMarcheHTML() {
-  const marcheur = '<circle cx="10" cy="6" r="5" fill="#3a3a3a"/><path d="M10 11 L10 26 M10 15 L3 22 M10 15 L17 22 M10 26 L4 38 M10 26 L16 38" stroke="#3a3a3a" stroke-width="3" stroke-linecap="round" fill="none"/>';
+  const marcheur = '<circle cx="12" cy="6" r="4" fill="#3a3a3a"/>' +
+    '<path d="M12 10 L10 24 M12 12 L7 18 M12 12 L17 16 ' +
+    'M10 24 L13 32 L16 40 M10 24 L7 31 L4 40" ' +
+    'stroke="#3a3a3a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
   const ville =
     '<rect x="0" y="34" width="70" height="56" fill="#fbf3e3"/><rect x="0" y="28" width="70" height="8" fill="#c1602e"/>' +
     '<path d="M14 90 L14 58 Q14 48 24 48 Q34 48 34 58 L34 90 Z" fill="#f3e6cc"/>' +

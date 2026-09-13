@@ -297,30 +297,40 @@
     animation: scene-avancer 8s linear infinite;
   }
   .scene-vehicule { width: 100%; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.25)); }
-  .scene-roue {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: roue-tourne 0.6s linear infinite;
-  }
-  @keyframes roue-tourne {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
 
   /* Avion (SVG de profil, décollage → croisière → atterrissage, nuages qui défilent) */
+  .scene-piste {
+    position: absolute;
+    bottom: 0;
+    width: 32%;
+    height: 14px;
+    background: #6b7280;
+  }
+  .scene-piste::before {
+    content: '';
+    position: absolute;
+    top: 5px; left: 0; right: 0;
+    height: 3px;
+    background-image: repeating-linear-gradient(to right, #fff 0 10px, transparent 10px 20px);
+  }
+  .piste-gauche { left: 0; }
+  .piste-droite { right: 0; }
+
   .carte-scene.scene-ciel .scene-avion-wrap {
     position: absolute;
     width: 110px;
-    animation: vol-avion 10s ease-in-out infinite;
+    animation: vol-avion 11s ease-in-out infinite;
   }
   .scene-avion { width: 100%; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.2)); }
   @keyframes vol-avion {
-    0%   { left: -20%; bottom: 6px;   transform: rotate(20deg); }
-    22%  { left: 18%;  bottom: 95px;  transform: rotate(6deg); }
-    38%  { left: 34%;  bottom: 118px; transform: rotate(0deg); }
-    62%  { left: 62%;  bottom: 118px; transform: rotate(0deg); }
-    78%  { left: 80%;  bottom: 95px;  transform: rotate(-6deg); }
-    100% { left: 118%; bottom: 6px;   transform: rotate(-20deg); }
+    0%   { left: -8%;  bottom: 10px;  transform: rotate(0deg); }
+    12%  { left: 4%;   bottom: 10px;  transform: rotate(-6deg); }
+    30%  { left: 24%;  bottom: 95px;  transform: rotate(-14deg); }
+    44%  { left: 38%;  bottom: 120px; transform: rotate(0deg); }
+    58%  { left: 60%;  bottom: 120px; transform: rotate(0deg); }
+    74%  { left: 78%;  bottom: 95px;  transform: rotate(10deg); }
+    90%  { left: 92%;  bottom: 10px;  transform: rotate(4deg); }
+    100% { left: 104%; bottom: 10px;  transform: rotate(0deg); }
   }
   .scene-nuage {
     position: absolute;
