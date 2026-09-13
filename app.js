@@ -1323,6 +1323,7 @@ document.getElementById('form-code-acces').addEventListener('submit', async func
   document.querySelector('.tabs').classList.add('hidden');
   document.getElementById('vue-invite').classList.remove('hidden');
   afficherListeInvite(data);
+  resoudreVideosInvite(code);
 });
 
 function afficherListeInvite(lignes) {
@@ -1340,9 +1341,8 @@ function afficherListeInvite(lignes) {
       dateFin: row.date_fin,
       heureFin: heureCourte(row.heure_fin),
       details: row.details,
-      lien: row.lien,
-      lienInfo: row.lien_info,
-      photo: row.photo
+      photo: row.photo,
+      videoPath: row.video_path
     };
   });
 
@@ -1358,10 +1358,32 @@ function afficherListeInvite(lignes) {
   cible.innerHTML = html;
 }
 
+async function resoudreVideosInvite(code) {
+  const elements = Array.from(document.querySelectorAll('#liste-invite video.carte-video[data-video-path]'));
+  if (elements.length === 0) return;
+  const chemins = elements.map(function (el) { return el.dataset.videoPath; });
+
+  try {
+    const reponse = await fetch(window.SUPABASE_URL + '/functions/v1/guest-video-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, paths: chemins })
+    });
+    const resultat = await reponse.json();
+    if (!reponse.ok || resultat.error || !resultat.urls) return;
+    elements.forEach(function (el, i) {
+      const item = resultat.urls[i];
+      if (item && item.signedUrl) el.src = item.signedUrl;
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 function carteInviteHTML(e) {
   return '' +
     '<div class="carte ' + e.type + '">' +
-    (e.photo ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : sceneHTMLPour(e)) +
+    (e.videoPath ? '<video class="carte-video" data-video-path="' + escapeHTML(e.videoPath) + '" muted loop playsinline autoplay></video>' : (e.photo ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : sceneHTMLPour(e))) +
     '  <div class="carte-content">' +
     '  <div class="carte-icone"><span class="material-symbols-rounded">' + iconePour(e) + '</span></div>' +
     '  <div class="carte-body">' +
@@ -1373,10 +1395,6 @@ function carteInviteHTML(e) {
     (e.lieu ? '<div class="carte-lieu"><span class="material-symbols-rounded">place</span> ' + escapeHTML(e.lieu) +
       (e.lieuArrivee ? ' → ' + escapeHTML(e.lieuArrivee) : '') + '</div>' : '') +
     (e.details ? '<div class="carte-details">' + escapeHTML(e.details) + '</div>' : '') +
-    '    <div class="carte-actions">' +
-    (e.lien ? '      <a class="lien-reservation" href="' + escapeHTML(e.lien) + '" target="_blank" rel="noopener"><span class="material-symbols-rounded">confirmation_number</span> Réservation</a>' : '') +
-    (e.lienInfo ? '      <a class="lien-reservation lien-info" href="' + escapeHTML(e.lienInfo) + '" target="_blank" rel="noopener"><span class="material-symbols-rounded">language</span> Site</a>' : '') +
-    '    </div>' +
     '  </div>' +
     '  </div>' +
     '</div>';
