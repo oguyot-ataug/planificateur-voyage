@@ -1297,10 +1297,7 @@ async function chargerUtilisateursAdmin() {
   if (!estAdmin) return;
   remplirSelectVoyageursAdmin();
 
-  const { data, error } = await sb
-    .from('voyage_utilisateurs')
-    .select('email, is_admin, voyageur_id, voyage_voyageurs(nom)')
-    .order('created_at', { ascending: true });
+  const { data, error } = await sb.rpc('voyage_admin_utilisateurs');
 
   if (error) {
     console.error(error);
@@ -1319,6 +1316,15 @@ function remplirSelectVoyageursAdmin() {
   select.value = valeurActuelle;
 }
 
+function formaterConnexion(u) {
+  if (!u.compte_cree) return '<span class="statut-connexion jamais">Jamais connecté</span>';
+  if (!u.derniere_connexion) return '<span class="statut-connexion jamais">Compte créé, jamais connecté</span>';
+  const d = new Date(u.derniere_connexion);
+  const texte = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) +
+    ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return '<span class="statut-connexion connecte">Connecté le ' + texte + '</span>';
+}
+
 function afficherListeAdmin() {
   const cible = document.getElementById('liste-admin-utilisateurs');
   if (utilisateursAdmin.length === 0) {
@@ -1326,10 +1332,10 @@ function afficherListeAdmin() {
     return;
   }
   cible.innerHTML = utilisateursAdmin.map(function (u) {
-    const nomVoyageur = u.voyage_voyageurs ? u.voyage_voyageurs.nom : null;
     return '<div class="ligne-voyageur"><span class="nom">' + escapeHTML(u.email) +
-      (nomVoyageur ? ' <span class="badge-voyageur">' + escapeHTML(nomVoyageur) + '</span>' : '') +
-      (u.is_admin ? '<span class="badge-admin">Admin</span>' : '') + '</span>' +
+      (u.voyageur_nom ? ' <span class="badge-voyageur">' + escapeHTML(u.voyageur_nom) + '</span>' : '') +
+      (u.is_admin ? '<span class="badge-admin">Admin</span>' : '') +
+      '<br>' + formaterConnexion(u) + '</span>' +
       '<button onclick="supprimerUtilisateurAdmin(\'' + encodeURIComponent(u.email) + '\')">Supprimer</button></div>';
   }).join('');
 }

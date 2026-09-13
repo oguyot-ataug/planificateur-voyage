@@ -916,3 +916,11 @@
     color: #fff;
     margin-left: 8px;
   }
+  .statut-connexion {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .statut-connexion.connecte { color: #158a3f; }
+  .statut-connexion.jamais { color: #b0a077; }
