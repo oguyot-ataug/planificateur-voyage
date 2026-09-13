@@ -288,25 +288,81 @@
   .carte-scene.scene-ciel {
     background: linear-gradient(to bottom, #a9d6ff 0%, #e8f5ff 100%);
   }
-  .carte-scene.scene-ciel .scene-icone {
-    bottom: auto;
-    color: #2563eb;
-    animation: scene-vol 8s ease-in-out infinite;
+
+  /* Voiture (SVG de profil, roues qui tournent) */
+  .scene-vehicule-wrap {
+    position: absolute;
+    bottom: 8px;
+    width: 100px;
+    animation: scene-avancer 8s linear infinite;
   }
-  @keyframes scene-vol {
-    0%   { left: -15%; top: 128px; transform: rotate(10deg); }
-    50%  { left: 46%; top: 18px; transform: rotate(0deg); }
-    100% { left: 105%; top: 128px; transform: rotate(10deg); }
+  .scene-vehicule { width: 100%; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.25)); }
+  .scene-roue {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: roue-tourne 0.6s linear infinite;
+  }
+  @keyframes roue-tourne {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 
-  .carte-scene.scene-marche .scene-pieton {
-    font-size: 32px;
-    bottom: 26px;
-    animation: scene-avancer 9s linear infinite, scene-rebond 0.45s ease-in-out infinite;
+  /* Avion (SVG de profil, décollage → croisière → atterrissage, nuages qui défilent) */
+  .carte-scene.scene-ciel .scene-avion-wrap {
+    position: absolute;
+    width: 110px;
+    animation: vol-avion 10s ease-in-out infinite;
   }
+  .scene-avion { width: 100%; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.2)); }
+  @keyframes vol-avion {
+    0%   { left: -20%; bottom: 6px;   transform: rotate(20deg); }
+    22%  { left: 18%;  bottom: 95px;  transform: rotate(6deg); }
+    38%  { left: 34%;  bottom: 118px; transform: rotate(0deg); }
+    62%  { left: 62%;  bottom: 118px; transform: rotate(0deg); }
+    78%  { left: 80%;  bottom: 95px;  transform: rotate(-6deg); }
+    100% { left: 118%; bottom: 6px;   transform: rotate(-20deg); }
+  }
+  .scene-nuage {
+    position: absolute;
+    width: 70px;
+    opacity: 0.9;
+    animation: nuages-defilent linear infinite;
+  }
+  .scene-nuage.n1 { top: 18px;  width: 60px; animation-duration: 7s; }
+  .scene-nuage.n2 { top: 55px;  width: 85px; animation-duration: 11s; animation-delay: -3s; }
+  .scene-nuage.n3 { top: 95px;  width: 50px; animation-duration: 9s;  animation-delay: -6s; }
+  @keyframes nuages-defilent {
+    from { left: 115%; }
+    to { left: -45%; }
+  }
+
+  /* Marche : groupe de piétons devant un décor de ruelle andalouse */
+  .carte-scene.scene-ville-marche {
+    background: linear-gradient(to bottom, #cfe8ff 0%, #cfe8ff 45%, #e0d3ae 45%, #e0d3ae 100%);
+  }
+  .scene-ville-fond {
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 100%; height: 62%;
+  }
+  .scene-groupe-marche {
+    position: absolute;
+    bottom: 16px;
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    animation: scene-avancer 11s linear infinite;
+  }
+  .scene-marcheur-wrap {
+    width: 22px;
+    height: 42px;
+    display: inline-block;
+    animation: scene-rebond 0.5s ease-in-out infinite;
+  }
+  .scene-marcheur { width: 100%; height: 100%; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2)); }
   @keyframes scene-rebond {
-    0%, 100% { margin-bottom: 0; }
-    50% { margin-bottom: 6px; }
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
   }
 
   .carte-content {

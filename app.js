@@ -36,24 +36,76 @@ function sceneClassePour(sousType) {
   return 'scene-route';
 }
 
-/** Petite animation CSS décorative en tête de carte quand il n'y a pas de photo (transports uniquement) */
+/** Petite animation décorative en tête de carte quand il n'y a pas de photo (transports sans photo) */
 function sceneHTMLPour(e) {
-  if (e.type === 'Location') {
-    return '<div class="carte-scene scene-route"><span class="material-symbols-rounded scene-icone">directions_car</span></div>';
+  if (e.type === 'Location' || e.sousType === 'Voiture') {
+    return sceneVoitureHTML();
   }
   if (e.type !== 'Transport' || !e.sousType) return '';
 
-  if (e.sousType === 'Marche') {
-    return '<div class="carte-scene scene-route scene-marche">' +
-      [0, 1, 2, 3].map(function (i) {
-        return '<span class="material-symbols-rounded scene-icone scene-pieton" style="animation-delay:' + (i * 1.5) + 's">directions_walk</span>';
-      }).join('') +
-      '</div>';
-  }
+  if (e.sousType === 'Avion') return sceneAvionHTML();
+  if (e.sousType === 'Marche') return sceneMarcheHTML();
 
   const icone = ICONES_SCENE_TRANSPORT[e.sousType];
   if (!icone) return '';
   return '<div class="carte-scene ' + sceneClassePour(e.sousType) + '"><span class="material-symbols-rounded scene-icone">' + icone + '</span></div>';
+}
+
+function sceneVoitureHTML() {
+  return '<div class="carte-scene scene-route">' +
+    '<div class="scene-vehicule-wrap">' +
+    '<svg class="scene-vehicule" viewBox="0 0 120 60" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M8 44 Q6 44 6 40 Q6 33 14 31 L26 31 L36 16 Q40 11 48 11 L78 11 Q86 11 91 18 L99 31 L106 31 Q114 31 114 40 Q114 44 110 44 Z" fill="#ffffff"/>' +
+    '<path d="M40 29 L47 16 L74 16 L83 29 Z" fill="#a9d6ff"/>' +
+    '<line x1="58" y1="16" x2="58" y2="29" stroke="#ffffff" stroke-width="2"/>' +
+    '<g class="scene-roue" style="transform-origin:30px 44px;"><circle cx="30" cy="44" r="10" fill="#2b2b2b"/><circle cx="30" cy="44" r="4" fill="#cbd5e1"/></g>' +
+    '<g class="scene-roue" style="transform-origin:92px 44px;"><circle cx="92" cy="44" r="10" fill="#2b2b2b"/><circle cx="92" cy="44" r="4" fill="#cbd5e1"/></g>' +
+    '</svg>' +
+    '</div>' +
+    '</div>';
+}
+
+function sceneAvionHTML() {
+  const nuage = '<ellipse cx="30" cy="25" rx="18" ry="12" fill="#ffffff"/><ellipse cx="52" cy="19" rx="24" ry="16" fill="#ffffff"/><ellipse cx="74" cy="26" rx="16" ry="11" fill="#ffffff"/>';
+  return '<div class="carte-scene scene-ciel">' +
+    '<svg class="scene-nuage n1" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
+    '<svg class="scene-nuage n2" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
+    '<svg class="scene-nuage n3" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">' + nuage + '</svg>' +
+    '<div class="scene-avion-wrap">' +
+    '<svg class="scene-avion" viewBox="0 0 140 60" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M6 34 L100 34 L124 24 L132 26 L112 36 L124 40 Q127 42 122 43 L100 39 L70 41 L55 56 L44 56 L52 41 L16 39 Q6 37 6 34 Z" fill="#ffffff"/>' +
+    '<path d="M60 34 L44 12 L54 12 L74 33 Z" fill="#ffffff"/>' +
+    '<circle cx="108" cy="32" r="2.4" fill="#1d4ed8"/>' +
+    '</svg>' +
+    '</div>' +
+    '</div>';
+}
+
+function sceneMarcheHTML() {
+  const marcheur = '<circle cx="10" cy="6" r="5" fill="#3a3a3a"/><path d="M10 11 L10 26 M10 15 L3 22 M10 15 L17 22 M10 26 L4 38 M10 26 L16 38" stroke="#3a3a3a" stroke-width="3" stroke-linecap="round" fill="none"/>';
+  const ville =
+    '<rect x="0" y="34" width="70" height="56" fill="#fbf3e3"/><rect x="0" y="28" width="70" height="8" fill="#c1602e"/>' +
+    '<path d="M14 90 L14 58 Q14 48 24 48 Q34 48 34 58 L34 90 Z" fill="#f3e6cc"/>' +
+    '<rect x="46" y="52" width="12" height="16" rx="6" fill="#e7d3ab"/>' +
+    '<rect x="80" y="10" width="26" height="80" fill="#fdf7ea"/>' +
+    '<polygon points="80,10 93,0 106,10" fill="#c1602e"/>' +
+    '<rect x="89" y="30" width="8" height="14" fill="#8a6a45"/>' +
+    '<rect x="112" y="40" width="90" height="50" fill="#fdf7ea"/><rect x="112" y="34" width="90" height="8" fill="#b9552a"/>' +
+    '<path d="M128 90 L128 62 Q128 53 137 53 Q146 53 146 62 L146 90 Z" fill="#f3e6cc"/>' +
+    '<path d="M168 90 L168 62 Q168 53 177 53 Q186 53 186 62 L186 90 Z" fill="#f3e6cc"/>' +
+    '<rect x="208" y="30" width="70" height="60" fill="#fbf3e3"/><rect x="208" y="24" width="70" height="8" fill="#c1602e"/>' +
+    '<rect x="224" y="48" width="14" height="18" rx="7" fill="#e7d3ab"/><rect x="252" y="48" width="14" height="18" rx="7" fill="#e7d3ab"/>' +
+    '<rect x="282" y="42" width="42" height="48" fill="#fdf7ea"/><rect x="282" y="36" width="42" height="8" fill="#b9552a"/>';
+
+  const marcheurs = [0, 1, 2, 3].map(function (i) {
+    return '<span class="scene-marcheur-wrap" style="animation-delay:' + (i * 0.13) + 's">' +
+      '<svg class="scene-marcheur" viewBox="0 0 20 40" xmlns="http://www.w3.org/2000/svg">' + marcheur + '</svg></span>';
+  }).join('');
+
+  return '<div class="carte-scene scene-ville-marche">' +
+    '<svg class="scene-ville-fond" viewBox="0 0 320 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' + ville + '</svg>' +
+    '<div class="scene-groupe-marche">' + marcheurs + '</div>' +
+    '</div>';
 }
 
 // Types qui se décomposent en plusieurs lignes de coût (chambres, billets, parts...)
