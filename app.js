@@ -1341,6 +1341,7 @@ function afficherListeInvite(lignes) {
       dateFin: row.date_fin,
       heureFin: heureCourte(row.heure_fin),
       details: row.details,
+      lienInfo: row.lien_info,
       photo: row.photo,
       videoPath: row.video_path
     };
@@ -1395,6 +1396,7 @@ function carteInviteHTML(e) {
     (e.lieu ? '<div class="carte-lieu"><span class="material-symbols-rounded">place</span> ' + escapeHTML(e.lieu) +
       (e.lieuArrivee ? ' → ' + escapeHTML(e.lieuArrivee) : '') + '</div>' : '') +
     (e.details ? '<div class="carte-details">' + escapeHTML(e.details) + '</div>' : '') +
+    (e.lienInfo ? '    <div class="carte-actions"><a class="lien-reservation lien-info" href="' + escapeHTML(e.lienInfo) + '" target="_blank" rel="noopener"><span class="material-symbols-rounded">language</span> Site</a></div>' : '') +
     '  </div>' +
     '  </div>' +
     '</div>';
