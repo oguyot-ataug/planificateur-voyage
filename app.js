@@ -290,18 +290,44 @@ document.getElementById('btn-supprimer-video').addEventListener('click', async f
   document.getElementById('video-apercu').src = '';
 });
 
+// Cache des URLs signées déjà obtenues (chemin -> {url, expiresAt}) -- persiste entre les
+// appels, MÊME si les éléments <video> du DOM sont reconstruits entre-temps (chargerEtapes()
+// est appelée à chaque modification du voyage, et reconstruit toute la liste). Sans ce cache,
+// une URL signée DIFFÉRENTE était générée à chaque fois pour CHAQUE vidéo -- une URL différente
+// invalide le cache HTTP du navigateur (même fichier, adresse différente), forçant un
+// retéléchargement complet de TOUTES les vidéos à CHAQUE édition du voyage, par CHAQUE
+// personne ayant la page ouverte.
+const videoSignedUrlCache = new Map();
+const VIDEO_SIGNED_URL_DUREE = 3600; // secondes
 async function resoudreVideosAffichees() {
   const elements = Array.from(document.querySelectorAll('video.carte-video[data-video-path]:not([data-resolu])'));
   if (elements.length === 0) return;
-  const chemins = elements.map(function (el) { return el.dataset.videoPath; });
-  const { data, error } = await sb.storage.from('voyage-media').createSignedUrls(chemins, 3600);
+  const maintenant = Date.now();
+  const aResoudre = [];
+  elements.forEach(function (el) {
+    const chemin = el.dataset.videoPath;
+    const enCache = videoSignedUrlCache.get(chemin);
+    if (enCache && enCache.expiresAt > maintenant) {
+      // URL déjà connue et encore valide : on la réutilise TELLE QUELLE (même chaîne exacte),
+      // pour que le navigateur puisse servir la vidéo depuis son propre cache HTTP.
+      el.src = enCache.url;
+      el.dataset.resolu = '1';
+    } else {
+      aResoudre.push(el);
+    }
+  });
+  if (aResoudre.length === 0) return;
+  const chemins = aResoudre.map(function (el) { return el.dataset.videoPath; });
+  const { data, error } = await sb.storage.from('voyage-media').createSignedUrls(chemins, VIDEO_SIGNED_URL_DUREE);
   if (error) {
     console.error(error);
     return;
   }
-  elements.forEach(function (el, i) {
+  const expiresAt = Date.now() + (VIDEO_SIGNED_URL_DUREE - 60) * 1000; // marge de 60s
+  aResoudre.forEach(function (el, i) {
     const item = data[i];
     if (item && item.signedUrl) {
+      videoSignedUrlCache.set(el.dataset.videoPath, { url: item.signedUrl, expiresAt: expiresAt });
       el.src = item.signedUrl;
       el.dataset.resolu = '1';
     }
@@ -1117,10 +1143,18 @@ function modifierEtape(id) {
   const videoApercu = document.getElementById('video-apercu');
   if (videoPathForm) {
     videoWrap.classList.remove('hidden');
-    videoApercu.src = '';
-    sb.storage.from('voyage-media').createSignedUrl(videoPathForm, 3600).then(function (res) {
-      if (res.data) videoApercu.src = res.data.signedUrl;
-    });
+    const enCache = videoSignedUrlCache.get(videoPathForm);
+    if (enCache && enCache.expiresAt > Date.now()) {
+      videoApercu.src = enCache.url;
+    } else {
+      videoApercu.src = '';
+      sb.storage.from('voyage-media').createSignedUrl(videoPathForm, VIDEO_SIGNED_URL_DUREE).then(function (res) {
+        if (res.data) {
+          videoSignedUrlCache.set(videoPathForm, { url: res.data.signedUrl, expiresAt: Date.now() + (VIDEO_SIGNED_URL_DUREE - 60) * 1000 });
+          videoApercu.src = res.data.signedUrl;
+        }
+      });
+    }
   } else {
     videoWrap.classList.add('hidden');
     videoApercu.src = '';
