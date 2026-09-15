@@ -819,7 +819,7 @@ function carteHTML(e, avecActions, contexte) {
 
   return '' +
     '<div class="carte ' + e.type + '">' +
-    (e.videoPath ? '<video class="carte-video" data-video-path="' + escapeHTML(e.videoPath) + '" muted loop playsinline autoplay></video>' : (e.photo ? '<img class="carte-photo" data-photo-path="' + escapeHTML(e.photo) + '" alt="">' : sceneHTMLPour(e))) +
+    (e.videoPath ? '<video class="carte-video" data-video-path="' + escapeHTML(e.videoPath) + '" muted loop playsinline autoplay></video>' : (e.photo ? (e.photo.indexOf('data:') === 0 ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : '<img class="carte-photo" data-photo-path="' + escapeHTML(e.photo) + '" alt="">') : sceneHTMLPour(e))) +
     '  <div class="carte-content">' +
     '  <div class="carte-icone"><span class="material-symbols-rounded">' + iconePour(e) + '</span></div>' +
     '  <div class="carte-body">' +
@@ -1155,7 +1155,11 @@ function modifierEtape(id) {
   document.getElementById('etape-payeur').value = e.payeurId || '';
   afficherChipsPayeur(e.payeurId || '');
   photoForm = e.photo || null;
-  if (photoForm) {
+  if (photoForm && photoForm.indexOf('data:') === 0) {
+    // Ancien format (base64, avant migration) : servi directement, jamais envoyé à
+    // createSignedUrl comme si c'était un chemin -- source du 413 Content Too Large.
+    afficherApercuPhoto(photoForm);
+  } else if (photoForm) {
     const enCachePhoto = videoSignedUrlCache.get(photoForm);
     if (enCachePhoto && enCachePhoto.expiresAt > Date.now()) {
       afficherApercuPhoto(enCachePhoto.url);
@@ -1591,7 +1595,7 @@ function carteInviteHTML(e) {
   const aUneCarte = !!(e.lieu || e.lieuArrivee);
   return '' +
     '<div class="carte ' + e.type + '">' +
-    (e.videoPath ? '<video class="carte-video" data-video-path="' + escapeHTML(e.videoPath) + '" muted loop playsinline autoplay></video>' : (e.photo ? '<img class="carte-photo" data-photo-path="' + escapeHTML(e.photo) + '" alt="">' : sceneHTMLPour(e))) +
+    (e.videoPath ? '<video class="carte-video" data-video-path="' + escapeHTML(e.videoPath) + '" muted loop playsinline autoplay></video>' : (e.photo ? (e.photo.indexOf('data:') === 0 ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : '<img class="carte-photo" data-photo-path="' + escapeHTML(e.photo) + '" alt="">') : sceneHTMLPour(e))) +
     '  <div class="carte-content">' +
     '  <div class="carte-icone"><span class="material-symbols-rounded">' + iconePour(e) + '</span></div>' +
     '  <div class="carte-body">' +
