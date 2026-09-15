@@ -1520,7 +1520,7 @@ async function accederEnInvite(code) {
   document.getElementById('vue-invite').classList.remove('hidden');
   modeInviteActif = true;
   afficherListeInvite(data);
-  resoudreVideosInvite(code);
+  resoudreMediasInvite(code);
   afficherCarteEnsemble('carte-ensemble-invite-conteneur', etapesInvite);
 }
 
@@ -1563,10 +1563,12 @@ function afficherListeInvite(lignes) {
   cible.innerHTML = html;
 }
 
-async function resoudreVideosInvite(code) {
-  const elements = Array.from(document.querySelectorAll('#liste-invite video.carte-video[data-video-path]'));
+async function resoudreMediasInvite(code) {
+  const elements = Array.from(document.querySelectorAll(
+    '#liste-invite video.carte-video[data-video-path], #liste-invite img.carte-photo[data-photo-path]'
+  ));
   if (elements.length === 0) return;
-  const chemins = elements.map(function (el) { return el.dataset.videoPath; });
+  const chemins = elements.map(function (el) { return el.dataset.videoPath || el.dataset.photoPath; });
 
   try {
     const reponse = await fetch(window.SUPABASE_URL + '/functions/v1/guest-video-url', {
