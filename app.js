@@ -226,15 +226,31 @@ document.getElementById('etape-photo-input').addEventListener('change', async fu
   const file = evt.target.files[0];
   if (!file) return;
   try {
-    photoForm = await redimensionnerImage(file, 1000, 0.7);
-    afficherApercuPhoto(photoForm);
+    const dataUrlRedimensionne = await redimensionnerImage(file, 1000, 0.7);
+    afficherApercuPhoto(dataUrlRedimensionne); // aperçu immédiat, local, avant l'upload
+    const blob = await (await fetch(dataUrlRedimensionne)).blob();
+    if (photoForm) {
+      await sb.storage.from('voyage-media').remove([photoForm]);
+      photoForm = null;
+    }
+    const chemin = genId() + '-' + Date.now() + '.jpg';
+    const { error } = await sb.storage.from('voyage-media').upload(chemin, blob, { contentType: 'image/jpeg' });
+    if (error) {
+      alert('Erreur d\'envoi de la photo : ' + error.message);
+      afficherApercuPhoto(null);
+      return;
+    }
+    photoForm = chemin; // un CHEMIN Storage désormais, pas la donnée base64 elle-même
   } catch (err) {
     alert('Impossible de lire cette image.');
   }
   evt.target.value = '';
 });
 
-document.getElementById('btn-supprimer-photo').addEventListener('click', function () {
+document.getElementById('btn-supprimer-photo').addEventListener('click', async function () {
+  if (photoForm) {
+    await sb.storage.from('voyage-media').remove([photoForm]);
+  }
   photoForm = null;
   afficherApercuPhoto(null);
 });
@@ -299,17 +315,19 @@ document.getElementById('btn-supprimer-video').addEventListener('click', async f
 // personne ayant la page ouverte.
 const videoSignedUrlCache = new Map();
 const VIDEO_SIGNED_URL_DUREE = 3600; // secondes
-async function resoudreVideosAffichees() {
-  const elements = Array.from(document.querySelectorAll('video.carte-video[data-video-path]:not([data-resolu])'));
+async function resoudreMediasAffiches() {
+  const elements = Array.from(document.querySelectorAll(
+    'video.carte-video[data-video-path]:not([data-resolu]), img.carte-photo[data-photo-path]:not([data-resolu])'
+  ));
   if (elements.length === 0) return;
   const maintenant = Date.now();
   const aResoudre = [];
   elements.forEach(function (el) {
-    const chemin = el.dataset.videoPath;
+    const chemin = el.dataset.videoPath || el.dataset.photoPath;
     const enCache = videoSignedUrlCache.get(chemin);
     if (enCache && enCache.expiresAt > maintenant) {
       // URL déjà connue et encore valide : on la réutilise TELLE QUELLE (même chaîne exacte),
-      // pour que le navigateur puisse servir la vidéo depuis son propre cache HTTP.
+      // pour que le navigateur puisse servir le média depuis son propre cache HTTP.
       el.src = enCache.url;
       el.dataset.resolu = '1';
     } else {
@@ -317,7 +335,7 @@ async function resoudreVideosAffichees() {
     }
   });
   if (aResoudre.length === 0) return;
-  const chemins = aResoudre.map(function (el) { return el.dataset.videoPath; });
+  const chemins = aResoudre.map(function (el) { return el.dataset.videoPath || el.dataset.photoPath; });
   const { data, error } = await sb.storage.from('voyage-media').createSignedUrls(chemins, VIDEO_SIGNED_URL_DUREE);
   if (error) {
     console.error(error);
@@ -326,8 +344,9 @@ async function resoudreVideosAffichees() {
   const expiresAt = Date.now() + (VIDEO_SIGNED_URL_DUREE - 60) * 1000; // marge de 60s
   aResoudre.forEach(function (el, i) {
     const item = data[i];
+    const chemin = el.dataset.videoPath || el.dataset.photoPath;
     if (item && item.signedUrl) {
-      videoSignedUrlCache.set(el.dataset.videoPath, { url: item.signedUrl, expiresAt: expiresAt });
+      videoSignedUrlCache.set(chemin, { url: item.signedUrl, expiresAt: expiresAt });
       el.src = item.signedUrl;
       el.dataset.resolu = '1';
     }
@@ -454,7 +473,7 @@ async function chargerEtapes() {
   etapes = data.map(mapEtapeFromDb);
   afficherListeSaisie();
   afficherVoyage();
-  resoudreVideosAffichees();
+  resoudreMediasAffiches();
 }
 
 async function chargerVoyageurs() {
@@ -800,7 +819,7 @@ function carteHTML(e, avecActions, contexte) {
 
   return '' +
     '<div class="carte ' + e.type + '">' +
-    (e.videoPath ? '<video class="carte-video" data-video-path="' + escapeHTML(e.videoPath) + '" muted loop playsinline autoplay></video>' : (e.photo ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : sceneHTMLPour(e))) +
+    (e.videoPath ? '<video class="carte-video" data-video-path="' + escapeHTML(e.videoPath) + '" muted loop playsinline autoplay></video>' : (e.photo ? '<img class="carte-photo" data-photo-path="' + escapeHTML(e.photo) + '" alt="">' : sceneHTMLPour(e))) +
     '  <div class="carte-content">' +
     '  <div class="carte-icone"><span class="material-symbols-rounded">' + iconePour(e) + '</span></div>' +
     '  <div class="carte-body">' +
@@ -1136,7 +1155,22 @@ function modifierEtape(id) {
   document.getElementById('etape-payeur').value = e.payeurId || '';
   afficherChipsPayeur(e.payeurId || '');
   photoForm = e.photo || null;
-  afficherApercuPhoto(photoForm);
+  if (photoForm) {
+    const enCachePhoto = videoSignedUrlCache.get(photoForm);
+    if (enCachePhoto && enCachePhoto.expiresAt > Date.now()) {
+      afficherApercuPhoto(enCachePhoto.url);
+    } else {
+      afficherApercuPhoto(null);
+      sb.storage.from('voyage-media').createSignedUrl(photoForm, VIDEO_SIGNED_URL_DUREE).then(function (res) {
+        if (res.data) {
+          videoSignedUrlCache.set(photoForm, { url: res.data.signedUrl, expiresAt: Date.now() + (VIDEO_SIGNED_URL_DUREE - 60) * 1000 });
+          afficherApercuPhoto(res.data.signedUrl);
+        }
+      });
+    }
+  } else {
+    afficherApercuPhoto(null);
+  }
 
   videoPathForm = e.videoPath || null;
   const videoWrap = document.getElementById('video-apercu-wrap');
@@ -1555,7 +1589,7 @@ function carteInviteHTML(e) {
   const aUneCarte = !!(e.lieu || e.lieuArrivee);
   return '' +
     '<div class="carte ' + e.type + '">' +
-    (e.videoPath ? '<video class="carte-video" data-video-path="' + escapeHTML(e.videoPath) + '" muted loop playsinline autoplay></video>' : (e.photo ? '<img class="carte-photo" src="' + e.photo + '" alt="">' : sceneHTMLPour(e))) +
+    (e.videoPath ? '<video class="carte-video" data-video-path="' + escapeHTML(e.videoPath) + '" muted loop playsinline autoplay></video>' : (e.photo ? '<img class="carte-photo" data-photo-path="' + escapeHTML(e.photo) + '" alt="">' : sceneHTMLPour(e))) +
     '  <div class="carte-content">' +
     '  <div class="carte-icone"><span class="material-symbols-rounded">' + iconePour(e) + '</span></div>' +
     '  <div class="carte-body">' +
