@@ -49,6 +49,13 @@ copier-coller manuel.
   (hors hébergement)
 - `voyage_chambres` — une ligne par chambre, rattachée à une étape hébergement
 - `voyage_chambre_voyageurs` — table de jointure : qui occupe quelle chambre
+- `voyage_remboursements` — un virement entre voyageurs (`de_id` rembourse
+  `a_id`, `date`, `note`). Ne compte pas dans le total du voyage : il augmente
+  le solde de celui qui rembourse et diminue celui de celui qui reçoit.
+- `voyage_remboursement_etapes` — ventilation d'un remboursement par étape
+  (`etape_id`, `montant`). `etape_id` null = montant hors dépense (ou étape
+  supprimée depuis). Lié aux étapes et non aux lignes de coût, car celles-ci
+  sont recréées à chaque sauvegarde d'étape.
 
 Toutes les tables ont RLS activé avec une policy publique (`using (true)`) —
 adapté à un usage familial privé sans authentification, pas à un usage grand
