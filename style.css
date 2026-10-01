@@ -734,6 +734,70 @@
     font-style: italic;
   }
 
+  /* Remboursements */
+  .chip:disabled { opacity: 0.4; cursor: not-allowed; }
+  .statut-remb { font-weight: 700; white-space: nowrap; margin-left: 10px; }
+  .statut-remb.ok { color: #158a3f; }
+  .statut-remb.partiel { color: var(--repas); }
+  .statut-remb.a-faire { color: var(--rojo); }
+  .statut-remb.neutre { color: #8a7a5c; }
+
+  .remb-hint { margin: 0 0 12px; }
+  .remb-toutes { margin: 4px 0 16px; }
+  .remb-etape {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .remb-etape .checkbox-label {
+    flex: 1;
+    margin: 0;
+    color: var(--text);
+    font-size: 13.5px;
+    letter-spacing: 0;
+  }
+  .remb-etape-info {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 400;
+    color: #b0a077;
+  }
+  .remb-etape-montant { width: 110px; flex-shrink: 0; margin-top: 0; }
+  .remb-etape-montant:disabled { opacity: 0.5; }
+  .remb-total {
+    font-size: 14.5px;
+    font-weight: 700;
+    margin-top: 6px;
+  }
+  .remb-total span { color: var(--rojo); font-weight: 800; }
+
+  .remboursement {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .remboursement-entete {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .remboursement-lignes { margin: 8px 0; }
+  .remboursement .ligne-actions { justify-content: flex-end; }
+  .remboursement button {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1.5px solid #f3c6cb;
+    background: #fdf1f2;
+    color: #C60B1E;
+    cursor: pointer;
+  }
+
   /* Photo d'illustration (formulaire) */
   #photo-apercu-wrap {
     margin-bottom: 12px;

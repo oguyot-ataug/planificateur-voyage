@@ -161,6 +161,8 @@ function libelleLignes(type) {
 let etapes = [];
 let etapesInvite = [];
 let voyageurs = [];
+let remboursements = [];
+let rembForm = null;
 let lignesForm = [];
 let photoForm = null;
 let videoPathForm = null;
@@ -474,6 +476,33 @@ async function chargerEtapes() {
   afficherListeSaisie();
   afficherVoyage();
   resoudreMediasAffiches();
+}
+
+async function chargerRemboursements() {
+  const { data, error } = await sb
+    .from('voyage_remboursements')
+    .select('id, de_id, a_id, date, note, voyage_remboursement_etapes ( etape_id, montant )')
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error(error);
+    alert('Erreur de chargement des remboursements : ' + error.message);
+    return;
+  }
+
+  remboursements = data.map(function (r) {
+    return {
+      id: r.id,
+      deId: r.de_id,
+      aId: r.a_id,
+      date: r.date,
+      note: r.note,
+      lignes: (r.voyage_remboursement_etapes || []).map(function (l) {
+        return { etapeId: l.etape_id, montant: parseFloat(l.montant) };
+      })
+    };
+  });
 }
 
 async function chargerVoyageurs() {
@@ -1023,7 +1052,7 @@ document.getElementById('form-voyageur').addEventListener('submit', async functi
 });
 
 async function supprimerVoyageur(id) {
-  if (!confirm('Supprimer ce voyageur ? Il sera retiré des étapes et lignes de coût qui le mentionnaient.')) return;
+  if (!confirm('Supprimer ce voyageur ? Il sera retiré des étapes et lignes de coût qui le mentionnaient, et ses remboursements seront supprimés.')) return;
   const { error } = await sb.from('voyage_voyageurs').delete().eq('id', id);
   if (error) {
     alert('Erreur : ' + error.message);
@@ -1031,12 +1060,66 @@ async function supprimerVoyageur(id) {
   }
   await chargerVoyageurs();
   await chargerEtapes();
+  await chargerRemboursements();
 }
 
 // ---- Onglet Budget ----
 
+function montantRemboursement(r) {
+  return r.lignes.reduce(function (s, l) { return s + l.montant; }, 0);
+}
+
+/** Part de deId sur les lignes de coût de l'étape payées par aId (ce que deId doit à aId pour cette étape) */
+function partDueEntre(e, deId, aId) {
+  if (deId === aId) return 0;
+  return lignesCoutPour(e).reduce(function (s, l) {
+    return (l.payeurId === aId && l.ids.includes(deId)) ? s + l.prix / l.ids.length : s;
+  }, 0);
+}
+
+/** Total déjà remboursé par deId à aId pour une étape */
+function dejaRembourseEntre(etapeId, deId, aId) {
+  return remboursements.reduce(function (s, r) {
+    if (r.deId !== deId || r.aId !== aId) return s;
+    return s + r.lignes.reduce(function (t, l) { return l.etapeId === etapeId ? t + l.montant : t; }, 0);
+  }, 0);
+}
+
+/** Suivi par dépense entre deux voyageurs : une ligne par étape avec une part due ou un remboursement */
+function suiviDepensesEntre(deId, aId) {
+  const lignes = [];
+  etapes.forEach(function (e) {
+    const du = partDueEntre(e, deId, aId);
+    const rembourse = dejaRembourseEntre(e.id, deId, aId);
+    if (du > 0.005 || rembourse > 0.005) {
+      lignes.push({ titre: e.titre, du: du, rembourse: rembourse });
+    }
+  });
+  return lignes;
+}
+
+function statutRemboursementHTML(du, rembourse) {
+  if (du > 0.005 && rembourse >= du - 0.005) {
+    return '<span class="statut-remb ok">✓ ' + formaterPrix(rembourse) + '</span>';
+  }
+  if (rembourse > 0.005 && du > 0.005) {
+    return '<span class="statut-remb partiel">' + formaterPrix(rembourse) + ' / ' + formaterPrix(du) + '</span>';
+  }
+  if (rembourse > 0.005) {
+    return '<span class="statut-remb neutre">' + formaterPrix(rembourse) + ' remboursés</span>';
+  }
+  return '<span class="statut-remb a-faire">' + formaterPrix(du) + ' dus</span>';
+}
+
+function titreEtape(etapeId) {
+  if (!etapeId) return 'Hors dépense';
+  const e = etapes.find(function (x) { return x.id === etapeId; });
+  return e ? e.titre : 'Hors dépense';
+}
+
 function afficherBudget() {
   const cible = document.getElementById('budget-contenu');
+  document.getElementById('bloc-remboursements').classList.toggle('hidden', voyageurs.length < 2);
 
   if (voyageurs.length === 0) {
     cible.innerHTML = '<div class="vide">Ajoute des voyageurs dans l\'onglet « Voyageurs » pour voir le budget.</div>';
@@ -1045,13 +1128,19 @@ function afficherBudget() {
 
   const totalDu = {};
   const totalPaye = {};
+  const totalVerse = {};
+  const totalRecu = {};
   const detailDu = {};
   const detailPaye = {};
+  const detailRemb = {};
   voyageurs.forEach(function (v) {
     totalDu[v.id] = 0;
     totalPaye[v.id] = 0;
+    totalVerse[v.id] = 0;
+    totalRecu[v.id] = 0;
     detailDu[v.id] = [];
     detailPaye[v.id] = [];
+    detailRemb[v.id] = [];
   });
   let nonAttribue = 0;
   let total = 0;
@@ -1079,20 +1168,72 @@ function afficherBudget() {
     });
   });
 
+  // Un remboursement n'est pas une dépense : il ne change pas le total du voyage,
+  // il transfère du solde de celui qui reçoit vers celui qui rembourse.
+  remboursements.forEach(function (r) {
+    const montant = montantRemboursement(r);
+    if (totalVerse.hasOwnProperty(r.deId)) {
+      totalVerse[r.deId] += montant;
+      detailRemb[r.deId].push({ titre: 'Versé à ' + (nomVoyageur(r.aId) || '?') + ' — ' + formaterDate(r.date), montant: montant });
+    }
+    if (totalRecu.hasOwnProperty(r.aId)) {
+      totalRecu[r.aId] += montant;
+      detailRemb[r.aId].push({ titre: 'Reçu de ' + (nomVoyageur(r.deId) || '?') + ' — ' + formaterDate(r.date), montant: -montant });
+    }
+  });
+
+  function lignesDetailHTML(lignes) {
+    return lignes.map(function (l) { return '<div class="ligne-detail"><span>' + escapeHTML(l.titre) + '</span><span>' + formaterPrix(l.montant) + '</span></div>'; }).join('');
+  }
+
   let html = '<div class="budget-total"><span class="budget-nom">Total du voyage</span><span class="budget-montant">' + formaterPrix(total) + '</span></div>';
 
   html += voyageurs.map(function (v) {
-    const solde = totalPaye[v.id] - totalDu[v.id];
+    const solde = totalPaye[v.id] - totalDu[v.id] + totalVerse[v.id] - totalRecu[v.id];
     const classeSolde = solde > 0.005 ? 'positif' : (solde < -0.005 ? 'negatif' : 'neutre');
     const signeSolde = solde > 0.005 ? '+' : '';
 
     const detailDuHtml = detailDu[v.id].length
-      ? detailDu[v.id].map(function (l) { return '<div class="ligne-detail"><span>' + escapeHTML(l.titre) + '</span><span>' + formaterPrix(l.montant) + '</span></div>'; }).join('')
+      ? lignesDetailHTML(detailDu[v.id])
       : '<div class="accordion-vide">Aucune dépense à sa charge.</div>';
 
     const detailPayeHtml = detailPaye[v.id].length
-      ? detailPaye[v.id].map(function (l) { return '<div class="ligne-detail"><span>' + escapeHTML(l.titre) + '</span><span>' + formaterPrix(l.montant) + '</span></div>'; }).join('')
+      ? lignesDetailHTML(detailPaye[v.id])
       : '<div class="accordion-vide">N\'a rien payé pour l\'instant.</div>';
+
+    let sectionRemb = '';
+    if (detailRemb[v.id].length) {
+      sectionRemb = '' +
+        '    <div class="accordion-section">' +
+        '      <h4>Remboursements</h4>' +
+        lignesDetailHTML(detailRemb[v.id]) +
+        '      <div class="ligne-detail total"><span>Net (versé − reçu)</span><span>' + formaterPrix(totalVerse[v.id] - totalRecu[v.id]) + '</span></div>' +
+        '    </div>';
+    }
+
+    // Suivi par dépense : ce que v doit aux autres, et ce que les autres lui doivent
+    const aRembourser = [];
+    const aRecevoir = [];
+    voyageurs.forEach(function (autre) {
+      if (autre.id === v.id) return;
+      suiviDepensesEntre(v.id, autre.id).forEach(function (l) {
+        aRembourser.push({ titre: l.titre + ' → ' + autre.nom, du: l.du, rembourse: l.rembourse });
+      });
+      suiviDepensesEntre(autre.id, v.id).forEach(function (l) {
+        aRecevoir.push({ titre: l.titre + ' ← ' + autre.nom, du: l.du, rembourse: l.rembourse });
+      });
+    });
+
+    function suiviHTML(titre, lignes) {
+      if (!lignes.length) return '';
+      return '' +
+        '    <div class="accordion-section">' +
+        '      <h4>' + titre + '</h4>' +
+        lignes.map(function (l) {
+          return '<div class="ligne-detail"><span>' + escapeHTML(l.titre) + '</span>' + statutRemboursementHTML(l.du, l.rembourse) + '</div>';
+        }).join('') +
+        '    </div>';
+    }
 
     return '' +
       '<div class="accordion-voyageur" id="accordion-' + v.id + '">' +
@@ -1114,6 +1255,9 @@ function afficherBudget() {
       detailPayeHtml +
       '      <div class="ligne-detail total"><span>Total payé</span><span>' + formaterPrix(totalPaye[v.id]) + '</span></div>' +
       '    </div>' +
+      sectionRemb +
+      suiviHTML('À rembourser par dépense', aRembourser) +
+      suiviHTML('À recevoir par dépense', aRecevoir) +
       '  </div>' +
       '</div>';
   }).join('');
@@ -1123,7 +1267,237 @@ function afficherBudget() {
   }
 
   cible.innerHTML = html;
+  afficherListeRemboursements();
 }
+
+function afficherListeRemboursements() {
+  const cible = document.getElementById('liste-remboursements');
+  if (remboursements.length === 0) {
+    cible.innerHTML = '<div class="vide">Aucun remboursement enregistré.</div>';
+    return;
+  }
+  cible.innerHTML = remboursements.map(function (r) {
+    const sousTitre = formaterDate(r.date) + (r.note ? ' · ' + escapeHTML(r.note) : '');
+    return '' +
+      '<div class="remboursement">' +
+      '  <div class="remboursement-entete">' +
+      '    <span class="budget-nom">' + escapeHTML(nomVoyageur(r.deId) || '?') + ' → ' + escapeHTML(nomVoyageur(r.aId) || '?') + '</span>' +
+      '    <span class="budget-montant">' + formaterPrix(montantRemboursement(r)) + '</span>' +
+      '  </div>' +
+      '  <div class="budget-detail">' + sousTitre + '</div>' +
+      '  <div class="remboursement-lignes">' +
+      r.lignes.map(function (l) {
+        return '<div class="ligne-detail"><span>' + escapeHTML(titreEtape(l.etapeId)) + '</span><span>' + formaterPrix(l.montant) + '</span></div>';
+      }).join('') +
+      '  </div>' +
+      '  <div class="ligne-actions"><button type="button" onclick="supprimerRemboursement(\'' + r.id + '\')">Supprimer</button></div>' +
+      '</div>';
+  }).join('');
+}
+
+async function supprimerRemboursement(id) {
+  if (!confirm('Supprimer ce remboursement ?')) return;
+  const { error } = await sb.from('voyage_remboursements').delete().eq('id', id);
+  if (error) {
+    alert('Erreur : ' + error.message);
+    return;
+  }
+  await chargerRemboursements();
+  afficherBudget();
+}
+
+// ---- Formulaire de remboursement ----
+
+function dateDuJour() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function ouvrirFormRemboursement() {
+  rembForm = { de: '', a: '', montants: {}, toutes: false };
+  const form = document.getElementById('form-remboursement');
+  form.reset();
+  document.getElementById('remb-date').value = dateDuJour();
+  form.classList.remove('hidden');
+  document.getElementById('btn-nouveau-remboursement').classList.add('hidden');
+  renderFormRemboursement();
+}
+
+function fermerFormRemboursement() {
+  rembForm = null;
+  document.getElementById('form-remboursement').classList.add('hidden');
+  document.getElementById('btn-nouveau-remboursement').classList.remove('hidden');
+}
+
+function chipsRembHTML(selectionne, exclu) {
+  return voyageurs.map(function (v) {
+    const actif = selectionne === v.id;
+    const desactive = exclu === v.id;
+    return '<button type="button" class="chip voyageur' + (actif ? ' active' : '') + '" data-voyageur="' + v.id + '"' + (desactive ? ' disabled' : '') + '>' +
+      '<span class="material-symbols-rounded">person</span><span>' + escapeHTML(v.nom) + '</span></button>';
+  }).join('');
+}
+
+function choisirRembVoyageur(role, voyageurId) {
+  rembForm[role] = (rembForm[role] === voyageurId) ? '' : voyageurId;
+  // Changer de paire rend les montants proposés caducs
+  rembForm.montants = {};
+  renderFormRemboursement();
+}
+
+function renderFormRemboursement() {
+  if (!rembForm) return;
+
+  ['de', 'a'].forEach(function (role) {
+    const cible = document.getElementById('chips-remb-' + role);
+    cible.innerHTML = chipsRembHTML(rembForm[role], rembForm[role === 'de' ? 'a' : 'de']);
+    cible.querySelectorAll('.chip').forEach(function (chip) {
+      chip.addEventListener('click', function () { choisirRembVoyageur(role, chip.dataset.voyageur); });
+    });
+  });
+
+  renderRembEtapes();
+  majTotalRemboursement();
+}
+
+function renderRembEtapes() {
+  const cible = document.getElementById('remb-etapes');
+  const de = rembForm.de;
+  const a = rembForm.a;
+
+  if (!de || !a) {
+    cible.innerHTML = '<p class="hint remb-hint">Choisis qui rembourse et à qui pour voir les dépenses concernées.</p>';
+    return;
+  }
+
+  const candidates = etapes
+    .map(function (e) {
+      const du = partDueEntre(e, de, a);
+      const deja = dejaRembourseEntre(e.id, de, a);
+      return { e: e, du: du, deja: deja, reste: Math.max(0, du - deja) };
+    })
+    .filter(function (c) {
+      if (rembForm.montants.hasOwnProperty(c.e.id)) return true;
+      return rembForm.toutes ? prixTotalPour(c.e) > 0 : c.reste > 0.005;
+    });
+
+  if (!candidates.length) {
+    cible.innerHTML = '<p class="hint remb-hint">Aucune dépense payée par ' + escapeHTML(nomVoyageur(a)) + ' ne reste à rembourser par ' + escapeHTML(nomVoyageur(de)) +
+      '. Coche « Afficher toutes les dépenses » ou saisis un montant hors dépense.</p>';
+    return;
+  }
+
+  cible.innerHTML = candidates.map(function (c) {
+    const coche = rembForm.montants.hasOwnProperty(c.e.id);
+    let info = 'Part : ' + formaterPrix(c.du);
+    if (c.deja > 0.005) info += ' · déjà remboursé : ' + formaterPrix(c.deja);
+    return '' +
+      '<div class="remb-etape">' +
+      '  <label class="checkbox-label">' +
+      '    <input type="checkbox" data-etape="' + c.e.id + '" data-reste="' + c.reste.toFixed(2) + '"' + (coche ? ' checked' : '') + '>' +
+      '    <span>' + escapeHTML(c.e.titre) + '<span class="remb-etape-info">' + info + '</span></span>' +
+      '  </label>' +
+      '  <input type="number" step="0.01" min="0" class="remb-etape-montant" data-etape="' + c.e.id + '"' +
+      (coche ? ' value="' + escapeHTML(rembForm.montants[c.e.id]) + '"' : ' disabled') + '>' +
+      '</div>';
+  }).join('');
+
+  cible.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      const id = cb.dataset.etape;
+      if (cb.checked) {
+        const reste = parseFloat(cb.dataset.reste);
+        rembForm.montants[id] = reste > 0 ? cb.dataset.reste : '';
+      } else {
+        delete rembForm.montants[id];
+      }
+      renderRembEtapes();
+      majTotalRemboursement();
+    });
+  });
+
+  cible.querySelectorAll('.remb-etape-montant').forEach(function (input) {
+    input.addEventListener('input', function () {
+      rembForm.montants[input.dataset.etape] = input.value;
+      majTotalRemboursement();
+    });
+  });
+}
+
+function lignesFormRemboursement() {
+  const lignes = [];
+  Object.keys(rembForm.montants).forEach(function (etapeId) {
+    const montant = parseFloat(rembForm.montants[etapeId]);
+    if (montant > 0) lignes.push({ etape_id: etapeId, montant: montant });
+  });
+  const horsEtape = parseFloat(document.getElementById('remb-hors-etape').value);
+  if (horsEtape > 0) lignes.push({ etape_id: null, montant: horsEtape });
+  return lignes;
+}
+
+function majTotalRemboursement() {
+  if (!rembForm) return;
+  const total = lignesFormRemboursement().reduce(function (s, l) { return s + l.montant; }, 0);
+  document.getElementById('remb-total').textContent = formaterPrix(total);
+}
+
+document.getElementById('btn-nouveau-remboursement').addEventListener('click', ouvrirFormRemboursement);
+document.getElementById('btn-cancel-remboursement').addEventListener('click', fermerFormRemboursement);
+document.getElementById('remb-hors-etape').addEventListener('input', majTotalRemboursement);
+document.getElementById('remb-toutes').addEventListener('change', function () {
+  if (!rembForm) return;
+  rembForm.toutes = this.checked;
+  renderRembEtapes();
+});
+
+document.getElementById('form-remboursement').addEventListener('submit', async function (evt) {
+  evt.preventDefault();
+  if (!rembForm) return;
+
+  if (!rembForm.de || !rembForm.a) {
+    alert('Choisis qui rembourse et à qui.');
+    return;
+  }
+  const lignes = lignesFormRemboursement();
+  if (!lignes.length) {
+    alert('Indique au moins un montant (sur une dépense ou hors dépense).');
+    return;
+  }
+
+  const btn = document.getElementById('btn-save-remboursement');
+  btn.disabled = true;
+
+  try {
+    const { data, error } = await sb
+      .from('voyage_remboursements')
+      .insert({
+        de_id: rembForm.de,
+        a_id: rembForm.a,
+        date: document.getElementById('remb-date').value || dateDuJour(),
+        note: vide(document.getElementById('remb-note').value.trim())
+      })
+      .select('id')
+      .single();
+    if (error) throw error;
+
+    const { error: errLignes } = await sb.from('voyage_remboursement_etapes').insert(
+      lignes.map(function (l) { return { remboursement_id: data.id, etape_id: l.etape_id, montant: l.montant }; })
+    );
+    if (errLignes) {
+      // Pas de remboursement « vide » : on annule l'en-tête si la ventilation échoue
+      await sb.from('voyage_remboursements').delete().eq('id', data.id);
+      throw errLignes;
+    }
+
+    btn.disabled = false;
+    fermerFormRemboursement();
+    await chargerRemboursements();
+    afficherBudget();
+  } catch (err) {
+    btn.disabled = false;
+    alert('Erreur : ' + err.message);
+  }
+});
 
 function toggleAccordionBudget(voyageurId) {
   const bloc = document.getElementById('accordion-' + voyageurId);
@@ -1243,6 +1617,8 @@ async function supprimerEtape(id) {
     return;
   }
   await chargerEtapes();
+  // Les remboursements liés à l'étape passent « hors dépense » (etape_id mis à null)
+  await chargerRemboursements();
 }
 
 document.getElementById('btn-cancel').addEventListener('click', function () {
@@ -1484,9 +1860,11 @@ async function gererSession(session) {
   if (peutEditer) {
     await chargerEtapes();
     await chargerVoyageurs();
+    await chargerRemboursements();
   } else {
     etapes = [];
     voyageurs = [];
+    remboursements = [];
   }
 }
 
